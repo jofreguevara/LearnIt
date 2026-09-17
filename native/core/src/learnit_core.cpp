@@ -24,6 +24,12 @@
 #endif
 #if defined(LEARNIT_WITH_SUPERTONIC)
 #include "supertonic_adapter.h"
+#ifndef LEARNIT_ONNXRUNTIME_VERSION
+#define LEARNIT_ONNXRUNTIME_VERSION "unknown"
+#endif
+#ifndef LEARNIT_ONNXRUNTIME_ABI
+#define LEARNIT_ONNXRUNTIME_ABI "unknown"
+#endif
 #endif
 
 namespace {
@@ -468,15 +474,15 @@ extern "C" {
 
 const char *learnit_core_version(void) {
 #if defined(LEARNIT_WITH_LLAMA) && defined(LEARNIT_WITH_SUPERTONIC)
-  return "learnit-core/0.5.0-native";
+  return "learnit-core/0.6.0-native";
 #elif defined(LEARNIT_WITH_LLAMA)
-  return "learnit-core/0.5.0-llama";
+  return "learnit-core/0.6.0-llama";
 #elif defined(LEARNIT_WITH_SUPERTONIC)
-  return "learnit-core/0.5.0-supertonic";
+  return "learnit-core/0.6.0-supertonic";
 #elif defined(LEARNIT_WITH_WHISPER)
-  return "learnit-core/0.5.0-whisper";
+  return "learnit-core/0.6.0-whisper";
 #else
-  return "learnit-core/0.5.0-abi";
+  return "learnit-core/0.6.0-abi";
 #endif
 }
 
@@ -495,8 +501,12 @@ const char *learnit_core_capabilities(void) {
 #endif
 #if defined(LEARNIT_WITH_SUPERTONIC)
          "\"supertonic_backend\":true,\"tts_backend\":true,"
+         "\"onnxruntime_backend\":true,\"onnxruntime_version\":\""
+         LEARNIT_ONNXRUNTIME_VERSION "\",\"onnxruntime_abi\":\""
+         LEARNIT_ONNXRUNTIME_ABI "\","
 #else
          "\"supertonic_backend\":false,\"tts_backend\":false,"
+         "\"onnxruntime_backend\":false,"
 #endif
          "\"models_verified\":false,\"async_transcribe\":true,"
          "\"async_dialogue\":true,\"async_tts\":true}";

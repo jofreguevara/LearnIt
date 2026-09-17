@@ -20,6 +20,8 @@ set(LEARNIT_SUPERTONIC_ROOT "" CACHE PATH
     "Path to the pinned Supertonic checkout")
 set(LEARNIT_ONNXRUNTIME_ROOT "" CACHE PATH
     "Path to an ONNX Runtime distribution with include/ and lib/")
+set(LEARNIT_ONNXRUNTIME_VERSION "1.23.1" CACHE STRING
+    "Expected ONNX Runtime version for the selected distribution")
 set(LEARNIT_NLOHMANN_ROOT "" CACHE PATH
     "Path containing nlohmann/json.hpp")
 
@@ -138,26 +140,73 @@ if(LEARNIT_WITH_SUPERTONIC)
             "LEARNIT_WITH_SUPERTONIC=ON requires LEARNIT_SUPERTONIC_ROOT")
   endif()
 
-  find_path(LEARNIT_ONNXRUNTIME_INCLUDE_DIR
-            NAMES onnxruntime_cxx_api.h
-            HINTS
-              "${LEARNIT_ONNXRUNTIME_ROOT}/include"
-              "${LEARNIT_ONNXRUNTIME_ROOT}/include/onnxruntime"
-              "${LEARNIT_ONNXRUNTIME_ROOT}"
-            NO_CMAKE_FIND_ROOT_PATH)
-  find_library(LEARNIT_ONNXRUNTIME_LIBRARY
-               NAMES onnxruntime libonnxruntime
-               HINTS
-                 "${LEARNIT_ONNXRUNTIME_ROOT}/lib"
-                 "${LEARNIT_ONNXRUNTIME_ROOT}/lib64"
-                 "${LEARNIT_ONNXRUNTIME_ROOT}"
-               NO_CMAKE_FIND_ROOT_PATH)
-  if(NOT LEARNIT_ONNXRUNTIME_INCLUDE_DIR OR
-     NOT LEARNIT_ONNXRUNTIME_LIBRARY)
+  # Android receives a multi-ABI package. Select the directory that matches
+  # Gradle's ANDROID_ABI before resolving any headers or libraries; otherwise
+  # CMake can silently pick the host Linux distribution.
+  set(_learnit_onnxruntime_root "${LEARNIT_ONNXRUNTIME_ROOT}")
+  if(ANDROID AND ANDROID_ABI AND
+     IS_DIRECTORY "${LEARNIT_ONNXRUNTIME_ROOT}/${ANDROID_ABI}/include")
+    set(_learnit_onnxruntime_root
+        "${LEARNIT_ONNXRUNTIME_ROOT}/${ANDROID_ABI}")
+  endif()
+  set(LEARNIT_ONNXRUNTIME_INCLUDE_DIR
+      "${_learnit_onnxruntime_root}/include")
+  set(LEARNIT_ONNXRUNTIME_LIBRARY
+      "${_learnit_onnxruntime_root}/lib/libonnxruntime.so")
+  if(NOT IS_DIRECTORY "${LEARNIT_ONNXRUNTIME_INCLUDE_DIR}" OR
+     NOT EXISTS "${LEARNIT_ONNXRUNTIME_INCLUDE_DIR}/onnxruntime_cxx_api.h" OR
+     NOT EXISTS "${LEARNIT_ONNXRUNTIME_LIBRARY}")
     message(FATAL_ERROR
             "LEARNIT_WITH_SUPERTONIC=ON requires an ONNX Runtime C++ "
             "distribution. Set LEARNIT_ONNXRUNTIME_ROOT to its root.")
   endif()
+
+  set(_learnit_onnxruntime_abi "host")
+  if(ANDROID)
+    set(_learnit_onnxruntime_abi "${ANDROID_ABI}")
+    if(NOT EXISTS "${_learnit_onnxruntime_root}/abi.txt")
+      message(FATAL_ERROR
+              "ONNX Runtime mobile package is missing abi.txt at "
+              "${_learnit_onnxruntime_root}")
+    endif()
+    file(READ "${_learnit_onnxruntime_root}/abi.txt"
+         _learnit_onnxruntime_package_abi)
+    string(STRIP "${_learnit_onnxruntime_package_abi}"
+           _learnit_onnxruntime_package_abi)
+    if(NOT _learnit_onnxruntime_package_abi STREQUAL ANDROID_ABI)
+      message(FATAL_ERROR
+              "ONNX Runtime ABI mismatch: package="
+              "${_learnit_onnxruntime_package_abi}, requested=${ANDROID_ABI}")
+    endif()
+  endif()
+
+  set(_learnit_onnxruntime_package_version "")
+  if(EXISTS "${_learnit_onnxruntime_root}/version.txt")
+    file(READ "${_learnit_onnxruntime_root}/version.txt"
+         _learnit_onnxruntime_package_version)
+  elseif(EXISTS "${_learnit_onnxruntime_root}/VERSION_NUMBER")
+    file(READ "${_learnit_onnxruntime_root}/VERSION_NUMBER"
+         _learnit_onnxruntime_package_version)
+  endif()
+  string(STRIP "${_learnit_onnxruntime_package_version}"
+         _learnit_onnxruntime_package_version)
+  if(_learnit_onnxruntime_package_version AND
+     NOT _learnit_onnxruntime_package_version STREQUAL
+         LEARNIT_ONNXRUNTIME_VERSION)
+    message(FATAL_ERROR
+            "ONNX Runtime version mismatch: package="
+            "${_learnit_onnxruntime_package_version}, expected="
+            "${LEARNIT_ONNXRUNTIME_VERSION}")
+  endif()
+  message(STATUS
+          "LearnIt: ONNX Runtime ${LEARNIT_ONNXRUNTIME_VERSION} ABI "
+          "${_learnit_onnxruntime_abi} from ${_learnit_onnxruntime_root}")
+
+  add_library(learnit_onnxruntime SHARED IMPORTED GLOBAL)
+  set_target_properties(learnit_onnxruntime PROPERTIES
+                        IMPORTED_LOCATION "${LEARNIT_ONNXRUNTIME_LIBRARY}"
+                        INTERFACE_INCLUDE_DIRECTORIES
+                        "${LEARNIT_ONNXRUNTIME_INCLUDE_DIR}")
 
   if(NOT LEARNIT_NLOHMANN_ROOT AND LEARNIT_WITH_LLAMA AND
      EXISTS "${LEARNIT_LLAMA_ROOT}/vendor/nlohmann/json.hpp")
@@ -181,7 +230,7 @@ if(LEARNIT_WITH_SUPERTONIC)
                              "${LEARNIT_ONNXRUNTIME_INCLUDE_DIR}"
                              "${LEARNIT_NLOHMANN_INCLUDE_DIR}")
   target_link_libraries(learnit_supertonic_helper PUBLIC
-                        "${LEARNIT_ONNXRUNTIME_LIBRARY}"
+                        learnit_onnxruntime
                         Threads::Threads
                         ${CMAKE_DL_LIBS})
   set_property(TARGET learnit_supertonic_helper
@@ -192,10 +241,13 @@ if(LEARNIT_WITH_SUPERTONIC)
                              "${LEARNIT_SUPERTONIC_ROOT}/cpp"
                              "${LEARNIT_ONNXRUNTIME_INCLUDE_DIR}"
                              "${LEARNIT_NLOHMANN_INCLUDE_DIR}")
-  target_compile_definitions(learnit_core PRIVATE LEARNIT_WITH_SUPERTONIC=1)
+  target_compile_definitions(learnit_core PRIVATE
+                             LEARNIT_WITH_SUPERTONIC=1
+                             LEARNIT_ONNXRUNTIME_VERSION=\"${LEARNIT_ONNXRUNTIME_VERSION}\"
+                             LEARNIT_ONNXRUNTIME_ABI=\"${_learnit_onnxruntime_abi}\")
   target_link_libraries(learnit_core PRIVATE
                         learnit_supertonic_helper
-                        "${LEARNIT_ONNXRUNTIME_LIBRARY}"
+                        learnit_onnxruntime
                         Threads::Threads
                         ${CMAKE_DL_LIBS})
 endif()

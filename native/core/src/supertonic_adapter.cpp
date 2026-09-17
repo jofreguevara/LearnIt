@@ -168,7 +168,7 @@ bool LearnItSupertonicAdapter::synthesize(
       std::string(voice_style_id) != "M1") {
     *error_code = "voice_style_unavailable";
     *error_message =
-        "La integración v0.5.0 solo incluye el estilo de voz verificado M1.";
+        "La integración actual solo incluye el estilo de voz verificado M1.";
     return false;
   }
   if (cancel_requested.load(std::memory_order_relaxed)) {

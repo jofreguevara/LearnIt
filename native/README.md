@@ -91,6 +91,36 @@ leen de variables de entorno durante el configure Gradle. ONNX Runtime debe
 ser compilado o descargado para cada ABI Android; la distribución Linux del
 ejemplo anterior solo sirve para host.
 
+## Build Android con ONNX Runtime móvil v0.6.0
+
+El paquete reducido de ONNX Runtime 1.23.1 se construye para arm64-v8a y
+x86_64 con:
+
+    ./tool/build_onnxruntime_android.sh
+    ./tool/validate_onnxruntime_android.sh
+
+El resultado queda en
+build/phase1/onnxruntime-android/1.23.1/<abi>/. No se versionan la biblioteca
+ni los headers; el manifiesto, los hashes y los metadatos permiten detectar un
+ABI, versión o configuración incorrectos. El builder usa el checkout oficial
+fijado al commit d9b2048791efb5804fe3d53a04b4971256addebf y la configuración
+native/onnxruntime/supertonic_required_operators.config.
+
+Para enlazar Supertonic en un APK x86_64:
+
+    LEARNIT_ANDROID_ABIS=x86_64 \
+    LEARNIT_WITH_SUPERTONIC=ON \
+    LEARNIT_SUPERTONIC_ROOT="$PWD/build/phase1/upstream/supertonic" \
+    LEARNIT_ONNXRUNTIME_ROOT="$PWD/build/phase1/onnxruntime-android/1.23.1" \
+    LEARNIT_NLOHMANN_ROOT="$PWD/build/phase1/upstream/llama.cpp/vendor" \
+      flutter build apk --debug --target-platform android-x64
+
+El CMake elige automáticamente 1.23.1/x86_64 o 1.23.1/arm64-v8a según
+ANDROID_ABI y usa una biblioteca importada con ubicación exacta. Por eso la
+distribución Linux de host no puede terminar dentro del APK. Para la variante
+ARM cambia LEARNIT_ANDROID_ABIS a arm64-v8a y usa --target-platform
+android-arm64.
+
 ## Estado de la integración
 
 - `NativeLlamaDialogueEngine` construye un request JSON con contexto de nivel,
@@ -103,10 +133,10 @@ ejemplo anterior solo sirve para host.
 
 ## Siguiente integración
 
-1. Compilar ARM64 para Android y el framework/XCFramework de iOS; mantener
-   CPU como ruta de pantalla bloqueada.
-2. Ejecutar la matriz de latencia, RAM, temperatura y batería con los pesos
-   exactos que se distribuirán.
+1. Compilar el framework/XCFramework de iOS y enlazar allí el runtime
+   equivalente; mantener CPU como ruta de pantalla bloqueada.
+2. Ejecutar en Android e iOS la matriz de latencia, RAM, temperatura y batería
+   con los pesos exactos que se distribuirán.
 
 El `NativeDialogueEngine` conserva el adaptador demo/compatibilidad; el camino
 real usa `NativeLlamaDialogueEngine`. `NativeSupertonicSynthesizer` valida el

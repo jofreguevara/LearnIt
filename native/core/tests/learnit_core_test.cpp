@@ -7,7 +7,7 @@
 #include <thread>
 
 int main() {
-  assert(std::string(learnit_core_version()).find("learnit-core/0.5.0") == 0);
+  assert(std::string(learnit_core_version()).find("learnit-core/0.6.0") == 0);
 
   const std::string capabilities = learnit_core_capabilities();
   assert(capabilities.find("\"abi\":3") != std::string::npos);
@@ -17,6 +17,8 @@ int main() {
   assert(capabilities.find("\"async_dialogue\":true") !=
          std::string::npos);
   assert(capabilities.find("\"async_tts\":true") != std::string::npos);
+  assert(capabilities.find("\"onnxruntime_backend\":") !=
+         std::string::npos);
 
   char *reply = learnit_demo_reply("a\"b\n", "en");
   assert(reply != nullptr);

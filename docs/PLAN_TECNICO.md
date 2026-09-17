@@ -1,6 +1,6 @@
 # LearnIt — alcance y plan técnico
 
-**Estado:** v0.5.0 — ABI nativa v3 y STT/LLM/TTS integrados en host; aceptación móvil pendiente<br>
+**Estado:** v0.6.0 — ABI nativa v3 y ONNX Runtime móvil compilado para arm64-v8a/x86_64; aceptación en dispositivos pendiente<br>
 **Público:** adultos<br>
 **Idioma de la interfaz inicial:** español<br>
 **Nombre de trabajo:** LearnIt<br>
@@ -192,9 +192,23 @@ valida el WAV PCM16 mono, calcula la onda y lo entrega al playback existente.
 El build sin runtimes continúa siendo reproducible y el smoke combinado de
 host pasa con los artefactos locales de Fase 1.
 
-Quedan fuera de este incremento la distribución de ONNX Runtime para todas las
-ABIs móviles, el framework iOS, audio con pantalla bloqueada y las mediciones
-de latencia/RAM/temperatura/batería en dispositivos físicos.
+Quedan fuera de este incremento el framework iOS, audio con pantalla
+bloqueada y las mediciones de latencia/RAM/temperatura/batería en dispositivos
+físicos.
+
+#### Incremento de v0.6.0
+
+ONNX Runtime 1.23.1 se compila desde el commit fijado
+d9b2048791efb5804fe3d53a04b4971256addebf para Android arm64-v8a y x86_64,
+con Android API 24, NDK 28.2, c++_shared, biblioteca compartida y reducción
+de operadores a partir del bundle de cuatro modelos de Supertonic 3. El
+builder deja un paquete por ABI con hashes y metadatos; el CMake del núcleo
+selecciona el subpaquete de ANDROID_ABI y rechaza mezclarlo con la biblioteca
+Linux de host. La versión y el ABI se publican en las capacidades nativas.
+
+Este incremento demuestra compilación cruzada, enlace del núcleo y
+empaquetado ELF. No cierra todavía la aceptación móvil: faltan teléfono
+Android ARM64, iOS/XCFramework, pantalla bloqueada y las métricas de campo.
 
 ### Fase 2 — Flutter e instalación
 

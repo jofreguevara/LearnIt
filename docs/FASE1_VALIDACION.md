@@ -46,6 +46,27 @@ al núcleo se obtiene únicamente con `verifiedBundleDirectory()`. Los pesos y
 la distribución ONNX Runtime siguen fuera de Git. La aplicación conserva el
 modo demo cuando un backend o sus bytes verificados no están disponibles.
 
+## Addendum v0.6.0
+
+ONNX Runtime 1.23.1 se compiló desde el commit
+d9b2048791efb5804fe3d53a04b4971256addebf para Android arm64-v8a y x86_64.
+Ambas variantes usan Android API 24, NDK 28.2, c++_shared, biblioteca
+compartida y la configuración reducida de operadores derivada de los cuatro
+modelos ONNX del bundle Supertonic 3.
+
+El paquete local queda organizado por ABI bajo
+build/phase1/onnxruntime-android/1.23.1. Cada directorio contiene la
+biblioteca, headers públicos, versión, ABI, hash de operadores, opciones de
+build y sha256sums.txt. tool/build_onnxruntime_android.sh es idempotente y
+tool/validate_onnxruntime_android.sh verifica manifiesto, hashes, arquitectura
+ELF, SONAME, libc++_shared.so, liblog.so y el símbolo OrtGetApiBase.
+
+El CMake del núcleo selecciona el subdirectorio según ANDROID_ABI e impide
+usar la distribución Linux de host en un build Android. Se verificó la
+compilación cruzada y el enlace del núcleo; no se declara todavía aceptación de
+audio o rendimiento porque no había teléfono Android conectado y el entorno no
+puede construir iOS.
+
 ## Matriz de artefactos
 
 | Camino | Candidato fijado | Tamaño | Estado |
@@ -132,6 +153,7 @@ la integración de STT en host, no una integración móvil terminada.
 | ABI v3 y STT Whisper en host | **Pasada** | `learnit_whisper_smoke` carga q5_1 y devuelve texto por la ABI |
 | STT, LLM y TTS en host | **Pasada** | Smoke reproducible por componente con pesos exactos |
 | Cadena nativa integrada STT → LLM → TTS | **Pasada en host** | ABI v3 y smoke combinado ejercitan los jobs de los tres runtimes; falta repetir audio end-to-end en móvil |
+| ONNX Runtime móvil arm64-v8a/x86_64 | **Pasada en build** | Paquetes 1.23.1 reducidos, hashes y ELF validados; falta aceptación en teléfono |
 | Android ARM64, bloqueo y 30 min | **Pendiente** | No hay dispositivo ADB conectado en este entorno |
 | iOS ARM64, bloqueo y 30 min | **Pendiente** | Requiere macOS + Xcode + iPhone físico |
 | Latencia, RAM, temperatura y batería móviles | **Pendiente** | Medir frío/caliente, modo avión, ahorro y presión de memoria |
@@ -139,7 +161,8 @@ la integración de STT en host, no una integración móvil terminada.
 | 100 casos educativos y falsos positivos | **Pendiente** | Revisión por persona competente en enseñanza de inglés |
 | Licencias de bundle y cuantizaciones de tercero | **Pendiente** | Adjuntar avisos y decisión legal antes de distribuir |
 
-Por tanto, `v0.5.0` cierra la integración de host de la Fase 1, pero no la
-aceptación pública. La entrada a Fase 2 queda deliberadamente bloqueada hasta
-completar las puertas físicas, de rendimiento y de calidad educativa; no se
-debe presentar el modo demo como inferencia local de producción.
+Por tanto, `v0.6.0` deja compilada y enlazada la variante Android de ONNX
+Runtime, pero no cierra la aceptación pública. La entrada a Fase 2 queda
+deliberadamente bloqueada hasta completar las puertas físicas, de rendimiento
+y de calidad educativa; no se debe presentar el modo demo como inferencia
+local de producción.

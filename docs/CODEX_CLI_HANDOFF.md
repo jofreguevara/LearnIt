@@ -11,21 +11,36 @@ SQLite (con fallback en memoria).
 También están preparados los puntos de integración para STT, diálogo, TTS,
 memoria y gestión de modelos. El núcleo C++ se compila como `learnit_core` y
 se empaqueta en Android para `arm64-v8a`, `armeabi-v7a` y `x86_64` mediante
-`android/app/src/main/cpp/CMakeLists.txt`.
+`android/app/src/main/cpp/CMakeLists.txt`; la distribución móvil de ONNX
+Runtime para Supertonic v0.6.0 cubre `arm64-v8a` y `x86_64`.
 
-La versión v0.5.0 integra la ruta real de host: ABI v3 con jobs de STT, diálogo
-y TTS, adaptadores CPU opt-in de `whisper.cpp`, `llama.cpp` y Supertonic/ONNX
-Runtime, y engines Dart que consumen solo rutas verificadas por
-`ModelManager`. El smoke combinado usa Qwen3.5 0.8B y el bundle Supertonic 3.
-El build y el modo demo siguen siendo predeterminados sin los checkouts y
-modelos locales; Android/iOS físicos, pantalla bloqueada y métricas de campo
-siguen pendientes.
+La versión v0.6.0 conserva la ruta real de host: ABI v3 con jobs de STT,
+diálogo y TTS, adaptadores CPU opt-in de `whisper.cpp`, `llama.cpp` y
+Supertonic/ONNX Runtime, y engines Dart que consumen solo rutas verificadas por
+`ModelManager`. Añade ONNX Runtime Android 1.23.1 compilado por ABI, con
+paquete reducido, hashes y guardas CMake. El build y el modo demo siguen
+siendo predeterminados sin los checkouts y modelos locales; Android/iOS
+físicos, pantalla bloqueada y métricas de campo siguen pendientes.
+
+## Estado v0.6.0
+
+ONNX Runtime 1.23.1 está compilado para Android arm64-v8a y x86_64 desde el
+commit d9b2048791efb5804fe3d53a04b4971256addebf. El paquete reducido queda en
+build/phase1/onnxruntime-android/1.23.1 y se genera/valida con
+tool/build_onnxruntime_android.sh y tool/validate_onnxruntime_android.sh.
+CMake selecciona el subpaquete por ANDROID_ABI, valida versión/ABI y expone
+los metadatos en learnit_core_capabilities.
+
+La compilación cruzada de ONNX Runtime y el enlace del núcleo Android son
+evidencia de build, no aceptación de rendimiento. No había un dispositivo ADB
+conectado; iOS sigue requiriendo macOS/Xcode.
 
 ## Entorno instalado
 
 - Flutter 3.47.4 / Dart 3.13.3: `/home/dev/tools/flutter`.
 - Android SDK 36: `/home/dev/android-sdk`.
-- Java 17, NDK 27.0.12077973, CMake 3.22.1 (SDK) y Ninja 1.11.1.
+- Java 17, NDK 28.2.13676358 para Flutter y ONNX Runtime móvil (también está
+  instalado NDK 27.0.12077973), CMake 3.22.1 (SDK) y Ninja 1.11.1.
 - Las rutas persistentes están en `/home/dev/.bashrc`; en una sesión nueva se
   puede ejecutar `source /home/dev/.bashrc`.
 - El repositorio Git local está en la rama `main`, con el snapshot inicial
@@ -70,7 +85,8 @@ conectado por ADB durante la compilación.
 3. Revisar cifrado/backup de SQLite, borrado de datos derivados y migraciones.
 4. Compilar iOS en macOS con Xcode; el proyecto ya está configurado para iOS
    16, micrófono y audio en segundo plano.
-5. Distribuir ONNX Runtime y los runtimes CPU para todas las ABIs móviles.
+5. Compilar el framework/XCFramework de iOS y enlazar los runtimes CPU en la
+   matriz móvil.
 6. Adjuntar revisión legal de OpenRAIL-M/cuantizaciones y añadir firma Android
    de release antes de preparar fichas de tienda.
 

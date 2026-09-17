@@ -16,6 +16,8 @@ set(LEARNIT_WITH_SUPERTONIC OFF CACHE BOOL
     "Link Supertonic into the Android shared core")
 set(LEARNIT_ONNXRUNTIME_ROOT "" CACHE PATH
     "Path to the Android ONNX Runtime distribution")
+set(LEARNIT_ONNXRUNTIME_VERSION "1.23.1" CACHE STRING
+    "Expected Android ONNX Runtime version")
 set(LEARNIT_NLOHMANN_ROOT "" CACHE PATH
     "Path containing nlohmann/json.hpp")
 
@@ -70,6 +72,13 @@ if(DEFINED ENV{LEARNIT_ONNXRUNTIME_ROOT})
 else()
     set(LEARNIT_ONNXRUNTIME_ROOT "" CACHE PATH
         "Path to the Android ONNX Runtime distribution" FORCE)
+endif()
+if(DEFINED ENV{LEARNIT_ONNXRUNTIME_VERSION})
+    set(LEARNIT_ONNXRUNTIME_VERSION "$ENV{LEARNIT_ONNXRUNTIME_VERSION}" CACHE STRING
+        "Expected Android ONNX Runtime version" FORCE)
+else()
+    set(LEARNIT_ONNXRUNTIME_VERSION "1.23.1" CACHE STRING
+        "Expected Android ONNX Runtime version" FORCE)
 endif()
 if(DEFINED ENV{LEARNIT_NLOHMANN_ROOT})
     set(LEARNIT_NLOHMANN_ROOT "$ENV{LEARNIT_NLOHMANN_ROOT}" CACHE PATH

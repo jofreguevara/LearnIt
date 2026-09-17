@@ -146,6 +146,54 @@ Para ejecutar el smoke test del diálogo nativo en una build Android que incluya
 `--dart-define=LEARNIT_NATIVE_SPIKE=true`. El reconocimiento y la síntesis
 continúan en modo demo hasta integrar los runtimes seleccionados.
 
+## Versión 0.6.0
+
+Esta versión añade una distribución móvil reproducible de ONNX Runtime para
+Supertonic 3:
+
+- ONNX Runtime 1.23.1 se compila desde el commit fijado
+  d9b2048791efb5804fe3d53a04b4971256addebf para arm64-v8a y x86_64;
+- cada ABI usa Android API 24, NDK 28.2, c++_shared, biblioteca compartida
+  y únicamente los operadores requeridos por los cuatro modelos ONNX de
+  Supertonic;
+- el paquete se instala en
+  build/phase1/onnxruntime-android/1.23.1/<abi>/, con headers, biblioteca,
+  metadatos, hashes y manifiesto;
+- CMake selecciona automáticamente el subdirectorio de ANDROID_ABI y
+  rechaza un abi.txt o versión incompatibles; el validador comprueba además
+  la arquitectura ELF;
+- learnit_core_capabilities expone la versión de ONNX Runtime y el ABI
+  móvil cuando se compila el backend Supertonic.
+
+Para construir y validar los dos paquetes:
+
+    ./tool/build_onnxruntime_android.sh
+    ./tool/validate_onnxruntime_android.sh
+
+El builder usa el checkout de ONNX Runtime en
+build/phase1/upstream/onnxruntime, una caché local de paquetes Python en
+build/phase1/python-packages y el SDK en /home/dev/android-sdk. Se pueden
+reemplazar estas rutas con LEARNIT_ORT_SOURCE, LEARNIT_ORT_PYTHONPATH,
+ANDROID_SDK_ROOT, LEARNIT_ANDROID_NDK, LEARNIT_ANDROID_API,
+LEARNIT_ANDROID_ABIS y LEARNIT_ORT_JOBS.
+
+Para compilar el APK con el paquete real, después de generar ONNX Runtime:
+
+    LEARNIT_ANDROID_ABIS=x86_64 \
+    LEARNIT_WITH_SUPERTONIC=ON \
+    LEARNIT_SUPERTONIC_ROOT="$PWD/build/phase1/upstream/supertonic" \
+    LEARNIT_ONNXRUNTIME_ROOT="$PWD/build/phase1/onnxruntime-android/1.23.1" \
+    LEARNIT_NLOHMANN_ROOT="$PWD/build/phase1/upstream/llama.cpp/vendor" \
+      flutter build apk --debug --target-platform android-x64
+
+Para arm64-v8a cambia LEARNIT_ANDROID_ABIS a arm64-v8a y usa
+android-arm64 en --target-platform. La compilación cruzada y la inspección ELF
+no sustituyen las pruebas con teléfono:
+siguen pendientes el enlace iOS, audio con pantalla bloqueada y las mediciones
+de latencia, RAM, temperatura y batería en dispositivos físicos. El método de
+build sigue los parámetros Android documentados por
+[ONNX Runtime](https://onnxruntime.ai/docs/build/android.html).
+
 ## Estado actual
 
 La base inicial contiene:

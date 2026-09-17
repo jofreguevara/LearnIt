@@ -1,5 +1,21 @@
 # Historial de cambios
 
+## 0.6.0 — 2026-09-17
+
+- Compilado ONNX Runtime 1.23.1 para Android arm64-v8a y x86_64 con
+  c++_shared, biblioteca compartida y reducción a los operadores usados por
+  el bundle verificado de Supertonic 3.
+- Añadidos tool/build_onnxruntime_android.sh y
+  tool/validate_onnxruntime_android.sh, con checkout, NDK, API, hashes,
+  manifiesto y validación ELF fijados.
+- CMake selecciona el subpaquete según ANDROID_ABI, valida abi.txt y la
+  versión, e importa libonnxruntime.so sin posibilidad de enlazar por
+  accidente la distribución Linux de host.
+- Publicada la versión del runtime y ABI móvil en learnit_core_capabilities;
+  actualizado Flutter a 0.6.0+6.
+- El enlace iOS y las pruebas en dispositivos físicos siguen pendientes:
+  Linux solo puede verificar la compilación cruzada y el empaquetado.
+
 ## 0.5.0 — 2026-09-17
 
 - Actualizada la ABI C a v3 con jobs asíncronos para diálogo y síntesis TTS.

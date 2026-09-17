@@ -4,6 +4,17 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val learnitWithSupertonic =
+    System.getenv("LEARNIT_WITH_SUPERTONIC")?.equals("ON", ignoreCase = true) == true
+val learnitAndroidAbis =
+    if (learnitWithSupertonic) {
+        (System.getenv("LEARNIT_ANDROID_ABIS") ?: "arm64-v8a,x86_64")
+            .split(Regex("[,\\s]+"))
+            .filter { it.isNotBlank() }
+    } else {
+        emptyList()
+    }
+
 android {
     namespace = "com.example.learnit"
     compileSdk = flutter.compileSdkVersion
@@ -35,8 +46,16 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
+        if (learnitAndroidAbis.isNotEmpty()) {
+            ndk {
+                abiFilters.clear()
+                abiFilters.addAll(learnitAndroidAbis)
+            }
+        }
+
         externalNativeBuild {
             cmake {
+                arguments += "-DANDROID_STL=c++_shared"
                 cppFlags += "-std=c++17"
             }
         }
