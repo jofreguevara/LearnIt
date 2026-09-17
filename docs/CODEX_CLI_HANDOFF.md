@@ -13,6 +13,11 @@ memoria y gestión de modelos. El núcleo C++ se compila como `learnit_core` y
 se empaqueta en Android para `arm64-v8a`, `armeabi-v7a` y `x86_64` mediante
 `android/app/src/main/cpp/CMakeLists.txt`.
 
+La versión v0.2.0 añade validación de metadatos, instalación atómica y lectura
+del manifiesto de modelos, además de `NativeDialogueEngine` para validar el
+contrato JSON del puente nativo. El modo demo sigue siendo el predeterminado;
+los pesos y adaptadores de inferencia reales continúan pendientes del spike.
+
 ## Entorno instalado
 
 - Flutter 3.47.4 / Dart 3.13.3: `/home/dev/tools/flutter`.
@@ -20,8 +25,8 @@ se empaqueta en Android para `arm64-v8a`, `armeabi-v7a` y `x86_64` mediante
 - Java 17, NDK 27.0.12077973, CMake 3.22.1 (SDK) y Ninja 1.11.1.
 - Las rutas persistentes están en `/home/dev/.bashrc`; en una sesión nueva se
   puede ejecutar `source /home/dev/.bashrc`.
-- Este directorio no contiene metadatos Git; no asumir ramas, commits ni
-  worktrees existentes.
+- El repositorio Git local está en la rama `main`, con el snapshot inicial
+  publicado como `v0.1` en GitHub.
 
 ## Validación reproducible
 
@@ -37,7 +42,9 @@ flutter build apk --release
 flutter build appbundle --release
 ```
 
-La última ejecución produjo 13 tests pasados y análisis sin incidencias.
+La validación de v0.2.0 produjo 18 tests pasados y análisis sin incidencias;
+también compilaron el núcleo C++ y un APK debug con
+`LEARNIT_NATIVE_SPIKE=true`.
 
 ## Artefactos recientes
 

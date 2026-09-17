@@ -9,6 +9,8 @@ enum CapabilityProfile { basic, advanced }
 
 enum ModelComponent { speechRecognizer, dialogue, speechSynthesizer }
 
+final _sha256Pattern = RegExp(r'^[a-fA-F0-9]{64}$');
+
 extension CapabilityProfileLabel on CapabilityProfile {
   String get value => this == CapabilityProfile.basic ? 'basic' : 'advanced';
 
@@ -46,6 +48,50 @@ class ModelPackage {
   final int sizeBytes;
   final String sourceUrl;
 
+  /// Returns a validation message for metadata that must be fixed before a
+  /// package can become active. Importing a local test fixture does not need a
+  /// network URL, so that check lives in [downloadError] instead.
+  String? get metadataError {
+    if (id.trim().isEmpty) {
+      return 'El paquete debe tener un identificador.';
+    }
+    if (version.trim().isEmpty || version.toLowerCase() == 'pending-spike') {
+      return 'El paquete $id necesita una versión fijada.';
+    }
+    if (fileName.trim().isEmpty ||
+        fileName.contains('/') ||
+        fileName.contains('\\') ||
+        fileName.contains('\u0000') ||
+        fileName == '.' ||
+        fileName == '..') {
+      return 'El nombre de archivo del paquete $id no es seguro.';
+    }
+    if (!_sha256Pattern.hasMatch(sha256)) {
+      return 'El paquete $id necesita un SHA-256 hexadecimal de 64 caracteres.';
+    }
+    if (sizeBytes <= 0) {
+      return 'El paquete $id necesita un tamaño instalado positivo.';
+    }
+    if (license.trim().isEmpty) {
+      return 'El paquete $id necesita declarar su licencia.';
+    }
+    return null;
+  }
+
+  String? get downloadError {
+    final metadata = metadataError;
+    if (metadata != null) {
+      return metadata;
+    }
+    final uri = Uri.tryParse(sourceUrl);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      return 'Los paquetes deben descargarse por HTTPS desde una URL válida.';
+    }
+    return null;
+  }
+
+  bool get isPinned => metadataError == null;
+
   Map<String, Object?> toMap() => {
         'id': id,
         'profile': profile.value,
@@ -57,6 +103,49 @@ class ModelPackage {
         'size_bytes': sizeBytes,
         'source_url': sourceUrl,
       };
+
+  factory ModelPackage.fromMap(Map<String, Object?> map) {
+    final profileValue = map['profile'];
+    final profile = CapabilityProfile.values
+        .where((candidate) => candidate.value == profileValue)
+        .firstOrNull;
+    if (profile == null) {
+      throw const FormatException('Perfil de modelo desconocido.');
+    }
+
+    final componentValue = map['component'];
+    final component = ModelComponent.values
+        .where((candidate) => candidate.value == componentValue)
+        .firstOrNull;
+    if (component == null) {
+      throw const FormatException('Componente de modelo desconocido.');
+    }
+
+    final sizeValue = map['size_bytes'];
+    if (sizeValue is! num) {
+      throw const FormatException('El tamaño del modelo no es numérico.');
+    }
+
+    return ModelPackage(
+      id: _requiredString(map, 'id'),
+      profile: profile,
+      component: component,
+      version: _requiredString(map, 'version'),
+      fileName: _requiredString(map, 'file_name'),
+      sha256: _requiredString(map, 'sha256'),
+      license: _requiredString(map, 'license'),
+      sizeBytes: sizeValue.toInt(),
+      sourceUrl: _requiredString(map, 'source_url'),
+    );
+  }
+}
+
+String _requiredString(Map<String, Object?> map, String key) {
+  final value = map[key];
+  if (value is! String) {
+    throw FormatException('Falta el campo de modelo "$key".');
+  }
+  return value;
 }
 
 class ModelVerification {
@@ -109,6 +198,13 @@ class ModelManager {
 
   Future<ModelVerification> verify(ModelPackage package) async {
     final file = await fileFor(package);
+    return _verifyFile(package, file);
+  }
+
+  Future<ModelVerification> _verifyFile(
+    ModelPackage package,
+    File file,
+  ) async {
     if (!await file.exists()) {
       return ModelVerification(
           package: package, installed: false, hashMatches: false);
@@ -136,36 +232,50 @@ class ModelManager {
     ModelPackage package,
     File source,
   ) async {
+    if (!await source.exists()) {
+      throw ArgumentError.value(
+        source.path,
+        'source',
+        'El archivo del modelo no existe.',
+      );
+    }
     final destination = await fileFor(package);
     final temporary = File('${destination.path}.part');
-    await source.copy(temporary.path);
-    if (await destination.exists()) {
-      await destination.delete();
+    try {
+      await source.copy(temporary.path);
+      final result = await _verifyFile(package, temporary);
+      if (!result.ready) {
+        throw StateError('El paquete ${package.id} no supera la verificación.');
+      }
+      if (await destination.exists()) {
+        await destination.delete();
+      }
+      await temporary.rename(destination.path);
+      return result;
+    } finally {
+      if (await temporary.exists()) {
+        await temporary.delete();
+      }
     }
-    await temporary.rename(destination.path);
-    final result = await verify(package);
-    if (!result.ready) {
-      await destination.delete();
-      throw StateError('El hash del paquete ${package.id} no coincide.');
-    }
-    return result;
   }
 
   Future<ModelVerification> download(
     ModelPackage package, {
     void Function(int receivedBytes, int totalBytes)? onProgress,
   }) async {
-    final uri = Uri.tryParse(package.sourceUrl);
-    if (uri == null || uri.scheme != 'https') {
+    final validationError = package.downloadError;
+    if (validationError != null) {
       throw ArgumentError.value(
         package.sourceUrl,
         'sourceUrl',
-        'Los paquetes deben descargarse por HTTPS.',
+        validationError,
       );
     }
+    final uri = Uri.parse(package.sourceUrl);
     final destination = await fileFor(package);
     final temporary = File('${destination.path}.part');
     final client = HttpClient();
+    var transferCompleted = false;
     try {
       final existingBytes =
           await temporary.exists() ? await temporary.length() : 0;
@@ -196,22 +306,33 @@ class ModelManager {
       } finally {
         await sink.close();
       }
+      transferCompleted = true;
+      final result = await _verifyFile(package, temporary);
+      if (!result.ready) {
+        await temporary.delete();
+        throw StateError('El paquete ${package.id} no supera la verificación.');
+      }
       if (await destination.exists()) {
         await destination.delete();
       }
       await temporary.rename(destination.path);
-      final result = await verify(package);
-      if (!result.ready) {
-        await destination.delete();
-        throw StateError('El hash del paquete ${package.id} no coincide.');
-      }
       return result;
     } finally {
+      // Keep an interrupted .part file so the next attempt can resume it.
+      // A completed transfer with a bad digest is removed above because it
+      // cannot be resumed safely.
+      if (transferCompleted && await temporary.exists()) {
+        await temporary.delete();
+      }
       client.close(force: true);
     }
   }
 
   Future<void> activate(ModelPackage package) async {
+    final metadataError = package.metadataError;
+    if (metadataError != null) {
+      throw StateError('No se puede activar el paquete: $metadataError');
+    }
     final verification = await verify(package);
     if (!verification.ready) {
       throw StateError(
@@ -325,7 +446,8 @@ class ModelManager {
               candidate.id == value['id'] &&
               candidate.component.value == entry.key &&
               candidate.version == value['version'] &&
-              candidate.sha256 == value['sha256'] &&
+              candidate.sha256.toLowerCase() ==
+                  (value['sha256'] as String? ?? '').toLowerCase() &&
               (await verify(candidate)).ready) {
             selected.add(candidate);
             break;
@@ -342,15 +464,16 @@ class ModelManager {
     CapabilityProfile profile,
     Iterable<ModelPackage> catalog,
   ) async {
-    final required =
-        catalog.where((package) => package.profile == profile).toList();
-    if (required.isEmpty) {
+    final required = catalog.where((package) => package.profile == profile);
+    if (ModelComponent.values.any(
+      (component) => !required.any((package) => package.component == component),
+    )) {
       return false;
     }
     final active = await activePackages(profile, required);
-    return required.every(
-      (package) => active.any(
-        (selected) => selected.component == package.component,
+    return ModelComponent.values.every(
+      (component) => active.any(
+        (selected) => selected.component == component,
       ),
     );
   }
@@ -362,7 +485,43 @@ class ModelManager {
     final encoded = JsonEncoder.withIndent('  ').convert(<String, Object?>{
       'packages': packages.map((package) => package.toMap()).toList(),
     });
-    await manifest.writeAsString(encoded);
+    final temporary = File('${manifest.path}.part');
+    try {
+      await temporary.writeAsString(encoded);
+      if (await manifest.exists()) {
+        await manifest.delete();
+      }
+      await temporary.rename(manifest.path);
+    } finally {
+      if (await temporary.exists()) {
+        await temporary.delete();
+      }
+    }
+  }
+
+  Future<List<ModelPackage>> readManifest() async {
+    final root = await _root();
+    final manifest = File(path.join(root.path, 'manifest.json'));
+    if (!await manifest.exists()) {
+      return const <ModelPackage>[];
+    }
+    final decoded = jsonDecode(await manifest.readAsString());
+    if (decoded is! Map || decoded['packages'] is! List) {
+      throw const FormatException('El manifiesto de modelos no es válido.');
+    }
+    return (decoded['packages'] as List).map((entry) {
+      if (entry is! Map) {
+        throw const FormatException('Una entrada del manifiesto no es válida.');
+      }
+      final map = <String, Object?>{};
+      for (final item in entry.entries) {
+        if (item.key is! String) {
+          throw const FormatException('Una clave del manifiesto no es válida.');
+        }
+        map[item.key as String] = item.value;
+      }
+      return ModelPackage.fromMap(map);
+    }).toList(growable: false);
   }
 }
 

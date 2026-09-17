@@ -1,6 +1,6 @@
 # LearnIt — alcance y plan técnico
 
-**Estado:** Fase 1/2 en implementación; modelos reales pendientes de validación<br>
+**Estado:** v0.2.0 — infraestructura de Fase 1 en implementación; modelos reales pendientes de validación<br>
 **Público:** adultos<br>
 **Idioma de la interfaz inicial:** español<br>
 **Nombre de trabajo:** LearnIt<br>

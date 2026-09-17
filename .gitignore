@@ -18,3 +18,7 @@ android/local.properties
 ios/Pods/
 ios/.symlinks/
 ios/Flutter/ephemeral/
+
+# Local CodeGraph index and session metadata.
+.codegraph/
+paseo.json

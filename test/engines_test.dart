@@ -1,9 +1,24 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:learnit/models/domain.dart';
 import 'package:learnit/services/engines.dart';
+import 'package:learnit/services/native_core_bridge.dart';
+
+class _FakeNativeDialogueClient implements NativeDialogueClient {
+  _FakeNativeDialogueClient(this.payload);
+
+  final String payload;
+
+  @override
+  String get version => 'test-native';
+
+  @override
+  String generateReply({required String input, required String language}) =>
+      payload;
+}
 
 void main() {
   test('demo dialogue emits a correction for a common learner error', () async {
@@ -46,5 +61,56 @@ void main() {
 
     expect(reply.memoryProposals.single.key, 'name');
     expect(reply.memoryProposals.single.value, 'Lucía');
+  });
+
+  test('native dialogue parses the structured response envelope', () async {
+    final engine = NativeDialogueEngine(
+      _FakeNativeDialogueClient(
+        jsonEncode(<String, Object?>{
+          'mode': 'native',
+          'language': 'en',
+          'message': 'Tell me about your day.',
+          'corrections': <String>['Use the past tense.'],
+          'topics': <String>['daily routines'],
+          'memory_proposals': <Map<String, String>>[
+            <String, String>{
+              'key': 'name',
+              'value': 'Lucía',
+              'reason': 'Shared during the conversation.',
+            },
+          ],
+        }),
+      ),
+    );
+
+    final reply = await engine.reply(
+      text: 'Hello',
+      companion: const CompanionProfile(),
+      level: 'A1',
+      memories: const <MemoryRecord>[],
+      lastSummary: null,
+    );
+
+    expect(reply.fullText, 'Tell me about your day.');
+    expect(reply.corrections, <String>['Use the past tense.']);
+    expect(reply.topics, <String>['daily routines']);
+    expect(reply.memoryProposals.single.value, 'Lucía');
+  });
+
+  test('native dialogue rejects an incomplete response envelope', () async {
+    final engine = NativeDialogueEngine(
+      _FakeNativeDialogueClient('{"language":"en","message":""}'),
+    );
+
+    await expectLater(
+      engine.reply(
+        text: 'Hello',
+        companion: const CompanionProfile(),
+        level: 'A1',
+        memories: const <MemoryRecord>[],
+        lastSummary: null,
+      ),
+      throwsA(isA<FormatException>()),
+    );
   });
 }

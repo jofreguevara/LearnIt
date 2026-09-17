@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../models/domain.dart';
+import 'native_core_bridge.dart';
 
 abstract interface class SpeechRecognizer {
   Future<Transcript> transcribe(
@@ -26,6 +28,125 @@ abstract interface class SpeechSynthesizer {
     required String voiceStyleId,
     required double speakingRate,
   });
+}
+
+/// Parses the stable JSON envelope exposed by the native dialogue seam.
+///
+/// The current native library is deliberately a smoke-test implementation.
+/// Keeping parsing here makes malformed native output recoverable by
+/// [SessionController] and leaves the Flutter contracts unchanged when the
+/// real llama.cpp adapter is introduced.
+class NativeDialogueEngine implements DialogueEngine {
+  const NativeDialogueEngine(this._client);
+
+  final NativeDialogueClient _client;
+
+  @override
+  Future<DialogueReply> reply({
+    required String text,
+    required CompanionProfile companion,
+    required String level,
+    required List<MemoryRecord> memories,
+    required SessionSummary? lastSummary,
+  }) async {
+    final raw = _client.generateReply(
+      input: text,
+      language: companion.preferredLanguage.value,
+    );
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('La respuesta nativa no es un objeto JSON.');
+    }
+    final payload = <String, dynamic>{};
+    for (final entry in decoded.entries) {
+      if (entry.key is! String) {
+        throw const FormatException(
+          'La respuesta nativa contiene una clave inválida.',
+        );
+      }
+      payload[entry.key as String] = entry.value;
+    }
+    final message = payload['message'];
+    final languageValue = payload['language'];
+    if (message is! String || message.trim().isEmpty) {
+      throw const FormatException(
+        'La respuesta nativa no contiene un mensaje válido.',
+      );
+    }
+    if (languageValue is! String) {
+      throw const FormatException(
+        'La respuesta nativa no declara el idioma del mensaje.',
+      );
+    }
+    final language = languageCodeFromValue(languageValue);
+    if (language == LanguageCode.auto) {
+      throw const FormatException(
+        'La respuesta nativa declara un idioma desconocido.',
+      );
+    }
+
+    return DialogueReply(
+      segments: <ReplySegment>[
+        ReplySegment(text: message.trim(), language: language),
+      ],
+      corrections: _readStringList(payload, 'corrections'),
+      topics: _readStringList(payload, 'topics'),
+      memoryProposals: _readMemoryProposals(payload),
+    );
+  }
+
+  List<String> _readStringList(Map<String, dynamic> payload, String key) {
+    final value = payload[key];
+    if (value == null) {
+      return const <String>[];
+    }
+    if (value is! List || value.any((item) => item is! String)) {
+      throw FormatException('El campo nativo "$key" no es una lista válida.');
+    }
+    return List<String>.unmodifiable(value.cast<String>());
+  }
+
+  List<MemoryProposal> _readMemoryProposals(Map<String, dynamic> payload) {
+    final value = payload['memory_proposals'];
+    if (value == null) {
+      return const <MemoryProposal>[];
+    }
+    if (value is! List) {
+      throw const FormatException(
+        'El campo nativo "memory_proposals" no es una lista.',
+      );
+    }
+    return value.map((entry) {
+      if (entry is! Map) {
+        throw const FormatException('Una propuesta de memoria no es válida.');
+      }
+      final proposal = <String, dynamic>{};
+      for (final item in entry.entries) {
+        if (item.key is! String) {
+          throw const FormatException(
+            'Una propuesta de memoria contiene una clave inválida.',
+          );
+        }
+        proposal[item.key as String] = item.value;
+      }
+      final key = proposal['key'];
+      final proposalValue = proposal['value'];
+      final reason = proposal['reason'];
+      if (key is! String ||
+          key.trim().isEmpty ||
+          proposalValue is! String ||
+          proposalValue.trim().isEmpty ||
+          reason is! String ||
+          reason.trim().isEmpty) {
+        throw const FormatException('Una propuesta de memoria no es válida.');
+      }
+      return MemoryProposal(
+        key: key.trim(),
+        value: proposalValue.trim(),
+        reason: reason.trim(),
+      );
+    }).toList(growable: false);
+  }
 }
 
 /// Fallback used by the UI before model packages are installed.

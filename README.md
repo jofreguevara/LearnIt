@@ -4,6 +4,27 @@ LearnIt es una aplicación Flutter para practicar inglés con inferencia local. 
 
 Para retomar el trabajo desde Codex CLI, consulta el [documento de relevo](docs/CODEX_CLI_HANDOFF.md), que registra el entorno, los comandos y los pendientes.
 
+## Versión 0.2.0
+
+Esta versión prepara la infraestructura del spike nativo de la Fase 1:
+
+- `ModelManager` rechaza metadatos de modelos sin versión, tamaño o SHA-256
+  fijados antes de descargar o activar un paquete;
+- las importaciones y descargas verifican el archivo temporal antes de
+  sustituir un modelo instalado;
+- el manifiesto local de modelos se puede leer y escribir de forma atómica;
+- `NativeDialogueEngine` valida el sobre JSON del puente nativo y mantiene los
+  contratos Dart listos para el runtime real.
+
+Los pesos reales todavía no se incluyen ni se seleccionan como paquetes de
+producción. El modo demo sigue siendo el comportamiento predeterminado hasta
+cerrar las mediciones de la Fase 1.
+
+Para ejecutar el smoke test del diálogo nativo en una build Android que incluya
+`liblearnit_core.so`, añade
+`--dart-define=LEARNIT_NATIVE_SPIKE=true`. El reconocimiento y la síntesis
+continúan en modo demo hasta integrar los runtimes seleccionados.
+
 ## Estado actual
 
 La base inicial contiene:

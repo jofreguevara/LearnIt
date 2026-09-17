@@ -56,14 +56,14 @@ char *copy_string(const std::string &value) {
 }  // namespace
 
 const char *learnit_core_version(void) {
-  return "learnit-core/0.1-demo";
+  return "learnit-core/0.2-native-spike";
 }
 
 char *learnit_demo_reply(const char *input, const char *language) {
   const std::string safe_input = escape_json(input);
   const std::string safe_language = escape_json(language);
   const std::string response =
-      "{\"mode\":\"demo\",\"language\":\"" + safe_language +
+      "{\"mode\":\"demo\",\"runtime\":\"native-spike\",\"language\":\"" + safe_language +
       "\",\"input\":\"" + safe_input +
       "\",\"message\":\"Native bridge ready; install a verified model package for inference.\"}";
   return copy_string(response);

@@ -60,6 +60,90 @@ void main() {
     );
   });
 
+  test('keeps the previous package when a replacement is invalid', () async {
+    final temporaryDirectory =
+        await Directory.systemTemp.createTemp('learnit-atomic-');
+    addTearDown(() => temporaryDirectory.delete(recursive: true));
+
+    final source = File('${temporaryDirectory.path}/model.bin');
+    final validBytes = <int>[1, 2, 3];
+    await source.writeAsBytes(validBytes);
+    final package = ModelPackage(
+      id: 'atomic-model',
+      profile: CapabilityProfile.basic,
+      component: ModelComponent.dialogue,
+      version: '1',
+      fileName: 'model.bin',
+      sha256: sha256.convert(validBytes).toString(),
+      license: 'MIT',
+      sizeBytes: validBytes.length,
+      sourceUrl: 'https://example.test/model.bin',
+    );
+    final manager = ModelManager(rootDirectory: temporaryDirectory);
+    await manager.importFile(package, source);
+
+    await source.writeAsBytes(<int>[9, 8, 7]);
+    await expectLater(
+      manager.importFile(package, source),
+      throwsA(isA<StateError>()),
+    );
+
+    expect((await manager.verify(package)).ready, isTrue);
+    expect(
+      await File('${temporaryDirectory.path}/basic/model.bin').readAsBytes(),
+      validBytes,
+    );
+  });
+
+  test('round trips a model manifest', () async {
+    final temporaryDirectory =
+        await Directory.systemTemp.createTemp('learnit-manifest-');
+    addTearDown(() => temporaryDirectory.delete(recursive: true));
+
+    final package = ModelPackage(
+      id: 'manifest-model',
+      profile: CapabilityProfile.advanced,
+      component: ModelComponent.dialogue,
+      version: '2026.09',
+      fileName: 'model.gguf',
+      sha256: 'a' * 64,
+      license: 'Apache-2.0',
+      sizeBytes: 42,
+      sourceUrl: 'https://example.test/model.gguf',
+    );
+    final manager = ModelManager(rootDirectory: temporaryDirectory);
+
+    await manager.writeManifest(<ModelPackage>[package]);
+    final loaded = await manager.readManifest();
+
+    expect(loaded.single.toMap(), package.toMap());
+    expect(loaded.single.isPinned, isTrue);
+  });
+
+  test('does not download a package with placeholder metadata', () async {
+    final temporaryDirectory =
+        await Directory.systemTemp.createTemp('learnit-download-');
+    addTearDown(() => temporaryDirectory.delete(recursive: true));
+
+    const package = ModelPackage(
+      id: 'pending-model',
+      profile: CapabilityProfile.basic,
+      component: ModelComponent.dialogue,
+      version: 'pending-spike',
+      fileName: 'model.gguf',
+      sha256: 'PENDING_SHA256',
+      license: 'Apache-2.0',
+      sizeBytes: 0,
+      sourceUrl: 'https://example.test/model.gguf',
+    );
+    final manager = ModelManager(rootDirectory: temporaryDirectory);
+
+    await expectLater(
+      manager.download(package),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
   test('keeps one active package per component', () async {
     final temporaryDirectory =
         await Directory.systemTemp.createTemp('learnit-active-');

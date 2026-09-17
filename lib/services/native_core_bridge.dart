@@ -3,7 +3,18 @@ import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
-class NativeCoreBridge {
+/// Small Dart-side contract for a native dialogue runtime.
+///
+/// The demo ABI implements this contract today. A whisper.cpp/llama.cpp/
+/// ONNX-backed bridge can replace it without changing the Flutter session
+/// orchestration or its tests.
+abstract interface class NativeDialogueClient {
+  String get version;
+
+  String generateReply({required String input, required String language});
+}
+
+class NativeCoreBridge implements NativeDialogueClient {
   NativeCoreBridge._(DynamicLibrary library)
       : _version = library.lookupFunction<_VersionNative, _VersionDart>(
           'learnit_core_version',
@@ -31,7 +42,12 @@ class NativeCoreBridge {
     }
   }
 
+  @override
   String get version => _version().toDartString();
+
+  @override
+  String generateReply({required String input, required String language}) =>
+      demoReply(input: input, language: language);
 
   String demoReply({required String input, required String language}) {
     final inputPointer = input.toNativeUtf8();
