@@ -669,6 +669,18 @@ class ModelManager {
     return ModelBundleVerification(bundle: bundle, artifacts: results);
   }
 
+  /// Returns a bundle directory only after every declared artifact passes its
+  /// size and SHA-256 checks. Native runtimes never receive an unverified path.
+  Future<Directory> verifiedBundleDirectory(ModelBundle bundle) async {
+    final verification = await verifyBundle(bundle);
+    if (!verification.ready) {
+      throw StateError(
+        'El bundle ${bundle.id} no está instalado y verificado.',
+      );
+    }
+    return _bundleDirectory(bundle);
+  }
+
   /// Imports all files into a staging directory and promotes the complete
   /// bundle only after every artifact passes its own SHA-256 and size check.
   Future<ModelBundleVerification> importBundle(
@@ -1286,10 +1298,9 @@ class ModelManager {
 }
 
 /// Catalog shape used by the installer UI. The STT and basic LLM candidates
-/// are pinned to immutable upstream commits for the v0.3.0 spike. Supertonic
-/// remains pending here because its official distribution is a multi-file
-/// ONNX/voice bundle and cannot be represented safely by the one-file package
-/// API yet.
+/// are pinned to immutable upstream commits. Supertonic is represented by
+/// [supertonic3Bundle] because its ONNX graphs and voice style must activate
+/// together rather than through the one-file package API.
 List<ModelPackage> defaultModelCatalog() => <ModelPackage>[
       const ModelPackage(
         id: 'whisper-base-multilingual-q5_1',
@@ -1320,17 +1331,6 @@ List<ModelPackage> defaultModelCatalog() => <ModelPackage>[
         sourceRevision: '8fea620810c4afa23dd6443f999a48574c1611a3',
       ),
       const ModelPackage(
-        id: 'supertonic-3',
-        profile: CapabilityProfile.basic,
-        component: ModelComponent.speechSynthesizer,
-        version: 'pending-spike',
-        fileName: 'supertonic-3.onnx',
-        sha256: 'PENDING_SHA256',
-        license: 'OpenRAIL-M',
-        sizeBytes: 0,
-        sourceUrl: 'https://huggingface.co/Supertone/supertonic-3',
-      ),
-      const ModelPackage(
         id: 'qwen3.5-4b-q4',
         profile: CapabilityProfile.advanced,
         component: ModelComponent.dialogue,
@@ -1345,7 +1345,7 @@ List<ModelPackage> defaultModelCatalog() => <ModelPackage>[
 
 const _supertonic3Revision = 'aafc6e32416a594460b32413efc49d7fe4ce6d46';
 
-/// Exact Supertonic 3 bundle used by the v0.3.0 Phase 1 candidate matrix.
+/// Exact Supertonic 3 bundle used by the v0.5.0 Phase 1 host integration.
 ///
 /// The bundle deliberately lives outside [defaultModelCatalog] because a
 /// [ModelPackage] represents one file while this runtime needs all seven

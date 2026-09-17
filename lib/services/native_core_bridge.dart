@@ -4,11 +4,8 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
-/// Small Dart-side contract for a native dialogue runtime.
-///
-/// The demo ABI implements this contract today. A whisper.cpp/llama.cpp/
-/// ONNX-backed bridge can replace it without changing the Flutter session
-/// orchestration or its tests.
+/// Small Dart-side contract for the compatibility/demo dialogue response.
+/// The asynchronous real runtime contracts are declared below.
 abstract interface class NativeDialogueClient {
   String get version;
 
@@ -24,6 +21,25 @@ abstract interface class NativeWhisperClient {
   Future<String> transcribe({
     required Uint8List audio,
     required String language,
+  });
+
+  void cancel();
+}
+
+/// Dart-side contract for the asynchronous llama.cpp dialogue job.
+abstract interface class NativeDialogueRuntime {
+  Future<String> generateDialogue({required String request});
+
+  void cancel();
+}
+
+/// Dart-side contract for the asynchronous Supertonic synthesis job.
+abstract interface class NativeTtsClient {
+  Future<String> synthesize({
+    required String text,
+    required String language,
+    required String voiceStyleId,
+    required double speakingRate,
   });
 
   void cancel();
@@ -45,9 +61,9 @@ class NativeCoreBridge implements NativeDialogueClient {
             library.lookupFunction<_FreeStringNative, _FreeStringDart>(
           'learnit_free_string',
         ),
-        _sessionCreate =
-            library.lookupFunction<_SessionCreateNative, _SessionCreateDart>(
-          'learnit_core_session_create',
+        _sessionCreateEx = library
+            .lookupFunction<_SessionCreateExNative, _SessionCreateExDart>(
+          'learnit_core_session_create_ex',
         ),
         _sessionDestroy =
             library.lookupFunction<_SessionDestroyNative, _SessionDestroyDart>(
@@ -78,13 +94,20 @@ class NativeCoreBridge implements NativeDialogueClient {
         _sessionCancel =
             library.lookupFunction<_SessionCancelNative, _SessionCancelDart>(
           'learnit_core_session_cancel',
+        ),
+        _dialogueStart =
+            library.lookupFunction<_DialogueStartNative, _DialogueStartDart>(
+          'learnit_core_dialogue_start',
+        ),
+        _ttsStart = library.lookupFunction<_TtsStartNative, _TtsStartDart>(
+          'learnit_core_tts_start',
         );
 
   final _VersionDart _version;
   final _CapabilitiesDart _capabilities;
   final _DemoReplyDart _demoReply;
   final _FreeStringDart _freeString;
-  final _SessionCreateDart _sessionCreate;
+  final _SessionCreateExDart _sessionCreateEx;
   final _SessionDestroyDart _sessionDestroy;
   final _SessionLoadDart _sessionLoad;
   final _SessionIsReadyDart _sessionIsReady;
@@ -93,6 +116,8 @@ class NativeCoreBridge implements NativeDialogueClient {
   final _JobPollDart _jobPoll;
   final _JobCancelDart _jobCancel;
   final _SessionCancelDart _sessionCancel;
+  final _DialogueStartDart _dialogueStart;
+  final _TtsStartDart _ttsStart;
 
   static NativeCoreBridge? tryLoad() {
     try {
@@ -138,15 +163,25 @@ class NativeCoreBridge implements NativeDialogueClient {
   }
 
   /// Creates a native session. Model loading is lazy and runs on the native
-  /// worker started by [NativeCoreSession.transcribe].
+  /// worker started by the first STT, dialogue, or TTS job.
   NativeCoreSession createSession({
     String? whisperModelPath,
+    String? dialogueModelPath,
+    String? supertonicModelDir,
+    String? supertonicVoiceStylePath,
     int whisperThreads = 2,
   }) {
-    final pathPointer = (whisperModelPath ?? '').toNativeUtf8();
+    final whisperPathPointer = (whisperModelPath ?? '').toNativeUtf8();
+    final dialoguePathPointer = (dialogueModelPath ?? '').toNativeUtf8();
+    final supertonicDirPointer = (supertonicModelDir ?? '').toNativeUtf8();
+    final supertonicVoicePointer =
+        (supertonicVoiceStylePath ?? '').toNativeUtf8();
     try {
-      final handle = _sessionCreate(
-        pathPointer,
+      final handle = _sessionCreateEx(
+        whisperPathPointer,
+        dialoguePathPointer,
+        supertonicDirPointer,
+        supertonicVoicePointer,
         whisperThreads.clamp(1, 8).toInt(),
       );
       if (handle == nullptr) {
@@ -162,17 +197,23 @@ class NativeCoreBridge implements NativeDialogueClient {
         poll: _jobPoll,
         cancelJob: _jobCancel,
         cancelSession: _sessionCancel,
+        startDialogue: _dialogueStart,
+        startTts: _ttsStart,
         freeString: _freeString,
       );
     } finally {
-      calloc.free(pathPointer);
+      calloc.free(whisperPathPointer);
+      calloc.free(dialoguePathPointer);
+      calloc.free(supertonicDirPointer);
+      calloc.free(supertonicVoicePointer);
     }
   }
 }
 
 /// Owns one native Whisper context and exposes its copy-owning job queue to
 /// Dart without blocking the Flutter event loop while inference runs.
-class NativeCoreSession implements NativeWhisperClient {
+class NativeCoreSession
+    implements NativeWhisperClient, NativeDialogueRuntime, NativeTtsClient {
   NativeCoreSession._({
     required Pointer<Void> handle,
     required _SessionDestroyDart destroy,
@@ -183,6 +224,8 @@ class NativeCoreSession implements NativeWhisperClient {
     required _JobPollDart poll,
     required _JobCancelDart cancelJob,
     required _SessionCancelDart cancelSession,
+    required _DialogueStartDart startDialogue,
+    required _TtsStartDart startTts,
     required _FreeStringDart freeString,
   })  : _handle = handle,
         _destroy = destroy,
@@ -193,6 +236,8 @@ class NativeCoreSession implements NativeWhisperClient {
         _poll = poll,
         _cancelJob = cancelJob,
         _cancelSession = cancelSession,
+        _startDialogue = startDialogue,
+        _startTts = startTts,
         _freeString = freeString;
 
   final Pointer<Void> _handle;
@@ -204,6 +249,8 @@ class NativeCoreSession implements NativeWhisperClient {
   final _JobPollDart _poll;
   final _JobCancelDart _cancelJob;
   final _SessionCancelDart _cancelSession;
+  final _DialogueStartDart _startDialogue;
+  final _TtsStartDart _startTts;
   final _FreeStringDart _freeString;
   bool _closed = false;
   int? _activeJobId;
@@ -258,26 +305,63 @@ class NativeCoreSession implements NativeWhisperClient {
         throw StateError(lastError);
       }
       _activeJobId = jobId;
-      try {
-        while (true) {
-          final result = _poll(_handle, jobId);
-          if (result != nullptr) {
-            try {
-              return result.toDartString();
-            } finally {
-              _freeString(result);
-            }
-          }
-          await Future<void>.delayed(const Duration(milliseconds: 10));
-        }
-      } finally {
-        if (_activeJobId == jobId) {
-          _activeJobId = null;
-        }
-      }
+      return await _awaitJob(jobId);
     } finally {
       calloc.free(languagePointer);
       calloc.free(samples);
+    }
+  }
+
+  @override
+  Future<String> generateDialogue({required String request}) async {
+    _ensureOpen();
+    if (request.trim().isEmpty) {
+      throw StateError('No se recibió una solicitud de diálogo.');
+    }
+    _ensureNoActiveJob();
+    final requestPointer = request.toNativeUtf8();
+    try {
+      final jobId = _startDialogue(_handle, requestPointer);
+      if (jobId == 0) {
+        throw StateError(lastError);
+      }
+      return await _awaitJob(jobId);
+    } finally {
+      calloc.free(requestPointer);
+    }
+  }
+
+  @override
+  Future<String> synthesize({
+    required String text,
+    required String language,
+    required String voiceStyleId,
+    required double speakingRate,
+  }) async {
+    _ensureOpen();
+    if (text.trim().isEmpty) {
+      throw StateError('No se recibió texto para sintetizar.');
+    }
+    _ensureNoActiveJob();
+    final textPointer = text.toNativeUtf8();
+    final languagePointer = language.toNativeUtf8();
+    final voicePointer = voiceStyleId.toNativeUtf8();
+    try {
+      final jobId = _startTts(
+        _handle,
+        textPointer,
+        languagePointer,
+        voicePointer,
+        speakingRate,
+      );
+      if (jobId == 0) {
+        throw StateError(lastError);
+      }
+      return await _awaitJob(jobId);
+    } finally {
+      calloc.free(textPointer);
+      calloc.free(languagePointer);
+      calloc.free(voicePointer);
     }
   }
 
@@ -308,6 +392,33 @@ class NativeCoreSession implements NativeWhisperClient {
       throw StateError('La sesión nativa ya fue cerrada.');
     }
   }
+
+  void _ensureNoActiveJob() {
+    if (_activeJobId != null) {
+      throw StateError('La sesión nativa ya tiene un trabajo activo.');
+    }
+  }
+
+  Future<String> _awaitJob(int jobId) async {
+    _activeJobId = jobId;
+    try {
+      while (true) {
+        final result = _poll(_handle, jobId);
+        if (result != nullptr) {
+          try {
+            return result.toDartString();
+          } finally {
+            _freeString(result);
+          }
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    } finally {
+      if (_activeJobId == jobId) {
+        _activeJobId = null;
+      }
+    }
+  }
 }
 
 typedef _VersionNative = Pointer<Utf8> Function();
@@ -324,13 +435,19 @@ typedef _DemoReplyDart = Pointer<Utf8> Function(
 );
 typedef _FreeStringNative = Void Function(Pointer<Utf8> value);
 typedef _FreeStringDart = void Function(Pointer<Utf8> value);
-typedef _SessionCreateNative = Pointer<Void> Function(
-  Pointer<Utf8> modelPath,
-  Int32 whisperThreads,
+typedef _SessionCreateExNative = Pointer<Void> Function(
+  Pointer<Utf8> whisperModelPath,
+  Pointer<Utf8> dialogueModelPath,
+  Pointer<Utf8> supertonicModelDir,
+  Pointer<Utf8> supertonicVoiceStylePath,
+  Int32 threads,
 );
-typedef _SessionCreateDart = Pointer<Void> Function(
-  Pointer<Utf8> modelPath,
-  int whisperThreads,
+typedef _SessionCreateExDart = Pointer<Void> Function(
+  Pointer<Utf8> whisperModelPath,
+  Pointer<Utf8> dialogueModelPath,
+  Pointer<Utf8> supertonicModelDir,
+  Pointer<Utf8> supertonicVoiceStylePath,
+  int threads,
 );
 typedef _SessionDestroyNative = Void Function(Pointer<Void> session);
 typedef _SessionDestroyDart = void Function(Pointer<Void> session);
@@ -371,3 +488,25 @@ typedef _JobCancelNative = Int32 Function(
 typedef _JobCancelDart = int Function(Pointer<Void> session, int jobId);
 typedef _SessionCancelNative = Void Function(Pointer<Void> session);
 typedef _SessionCancelDart = void Function(Pointer<Void> session);
+typedef _DialogueStartNative = Uint64 Function(
+  Pointer<Void> session,
+  Pointer<Utf8> request,
+);
+typedef _DialogueStartDart = int Function(
+  Pointer<Void> session,
+  Pointer<Utf8> request,
+);
+typedef _TtsStartNative = Uint64 Function(
+  Pointer<Void> session,
+  Pointer<Utf8> text,
+  Pointer<Utf8> language,
+  Pointer<Utf8> voiceStyleId,
+  Float speakingRate,
+);
+typedef _TtsStartDart = int Function(
+  Pointer<Void> session,
+  Pointer<Utf8> text,
+  Pointer<Utf8> language,
+  Pointer<Utf8> voiceStyleId,
+  double speakingRate,
+);

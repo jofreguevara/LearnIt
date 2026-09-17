@@ -215,6 +215,10 @@ void main() {
       <String, File>{'first': firstSource, 'second': secondSource},
     );
     expect(imported.ready, isTrue);
+    expect(
+      (await manager.verifiedBundleDirectory(bundle)).path,
+      '${temporaryDirectory.path}/basic/bundles/tts-bundle',
+    );
     await manager.activateBundle(bundle);
     expect(
       (await manager

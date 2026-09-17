@@ -13,12 +13,13 @@ memoria y gestión de modelos. El núcleo C++ se compila como `learnit_core` y
 se empaqueta en Android para `arm64-v8a`, `armeabi-v7a` y `x86_64` mediante
 `android/app/src/main/cpp/CMakeLists.txt`.
 
-La versión v0.4.0 inicia la integración real: el ABI v2 expone sesiones opacas,
-jobs de STT cancelables y `NativeSpeechRecognizer`; `learnit_core` puede
-enlazar el checkout fijado de `whisper.cpp` por CMake y el smoke executable ya
-transcribe el audio de muestra con el modelo real. El build y el modo demo
-siguen siendo predeterminados sin ese checkout; llama.cpp, Supertonic, iOS y
-las pruebas físicas siguen pendientes.
+La versión v0.5.0 integra la ruta real de host: ABI v3 con jobs de STT, diálogo
+y TTS, adaptadores CPU opt-in de `whisper.cpp`, `llama.cpp` y Supertonic/ONNX
+Runtime, y engines Dart que consumen solo rutas verificadas por
+`ModelManager`. El smoke combinado usa Qwen3.5 0.8B y el bundle Supertonic 3.
+El build y el modo demo siguen siendo predeterminados sin los checkouts y
+modelos locales; Android/iOS físicos, pantalla bloqueada y métricas de campo
+siguen pendientes.
 
 ## Entorno instalado
 
@@ -44,11 +45,10 @@ flutter build apk --release
 flutter build appbundle --release
 ```
 
-La validación de v0.4.0 produjo 24 tests Flutter pasados, análisis sin
-incidencias, CTest nativo con y sin Whisper pasado y una transcripción real
-desde la ABI contra el modelo Whisper base q5_1. La validación de artefactos y
-los smoke tests de host para Whisper, Qwen3.5 0.8B y Supertonic 3 mantienen sus
-cifras y límites en
+La validación de v0.5.0 produjo tests Flutter pasados, análisis sin incidencias,
+CTest nativo con ABI vacía y con cada combinación de runtimes, además de un
+smoke combinado real contra Qwen3.5 0.8B y Supertonic 3. La validación de
+artefactos y las cifras de referencia de host se mantienen en
 [`docs/FASE1_VALIDACION.md`](FASE1_VALIDACION.md).
 
 ## Artefactos recientes
@@ -63,15 +63,14 @@ conectado por ADB durante la compilación.
 
 ## Pendientes prioritarios
 
-1. Integrar llama.cpp y ONNX Runtime en `learnit_core`/FFI, manteniendo las
-   interfaces de `lib/services/engines.dart`.
-2. Medir latencia, RAM, temperatura y batería en teléfonos físicos; validar
+1. Medir latencia, RAM, temperatura y batería en teléfonos físicos; validar
    sesiones bloqueadas, llamadas, auriculares, presión de memoria y modo avión.
-3. Ejecutar el corpus bilingüe y los 100 casos educativos con los artefactos
+2. Ejecutar el corpus bilingüe y los 100 casos educativos con los artefactos
    exactos; conservar la matriz de resultados.
-4. Revisar cifrado/backup de SQLite, borrado de datos derivados y migraciones.
-5. Compilar iOS en macOS con Xcode; el proyecto ya está configurado para iOS
+3. Revisar cifrado/backup de SQLite, borrado de datos derivados y migraciones.
+4. Compilar iOS en macOS con Xcode; el proyecto ya está configurado para iOS
    16, micrófono y audio en segundo plano.
+5. Distribuir ONNX Runtime y los runtimes CPU para todas las ABIs móviles.
 6. Adjuntar revisión legal de OpenRAIL-M/cuantizaciones y añadir firma Android
    de release antes de preparar fichas de tienda.
 

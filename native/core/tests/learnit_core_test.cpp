@@ -7,13 +7,16 @@
 #include <thread>
 
 int main() {
-  assert(std::string(learnit_core_version()).find("learnit-core/0.4.0") == 0);
+  assert(std::string(learnit_core_version()).find("learnit-core/0.5.0") == 0);
 
   const std::string capabilities = learnit_core_capabilities();
-  assert(capabilities.find("\"abi\":2") != std::string::npos);
+  assert(capabilities.find("\"abi\":3") != std::string::npos);
   assert(capabilities.find("\"phase\":1") != std::string::npos);
   assert(capabilities.find("\"async_transcribe\":true") !=
          std::string::npos);
+  assert(capabilities.find("\"async_dialogue\":true") !=
+         std::string::npos);
+  assert(capabilities.find("\"async_tts\":true") != std::string::npos);
 
   char *reply = learnit_demo_reply("a\"b\n", "en");
   assert(reply != nullptr);
@@ -49,6 +52,40 @@ int main() {
   assert(job_result != nullptr);
   assert(std::string(job_result).find("\"ok\":false") != std::string::npos);
   learnit_free_string(job_result);
+
+  const auto dialogue_job = learnit_core_dialogue_start(
+      session, R"({"text":"Hello","language":"en"})");
+  assert(dialogue_job != 0);
+  char *dialogue_result = nullptr;
+  for (int attempt = 0; attempt < 100 && dialogue_result == nullptr;
+       ++attempt) {
+    dialogue_result = learnit_core_job_poll(session, dialogue_job);
+    if (dialogue_result == nullptr) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  }
+  assert(dialogue_result != nullptr);
+  assert(std::string(dialogue_result).find(
+             "\"code\":\"llama_backend_unavailable\"") !=
+         std::string::npos);
+  learnit_free_string(dialogue_result);
+
+  const auto tts_job = learnit_core_tts_start(
+      session, "Hello", "en", "M1", 1.0f);
+  assert(tts_job != 0);
+  char *tts_result = nullptr;
+  for (int attempt = 0; attempt < 100 && tts_result == nullptr; ++attempt) {
+    tts_result = learnit_core_job_poll(session, tts_job);
+    if (tts_result == nullptr) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  }
+  assert(tts_result != nullptr);
+  assert(std::string(tts_result).find(
+             "\"code\":\"supertonic_backend_unavailable\"") !=
+         std::string::npos);
+  learnit_free_string(tts_result);
+
   learnit_core_session_destroy(session);
   return 0;
 }

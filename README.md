@@ -4,6 +4,54 @@ LearnIt es una aplicación Flutter para practicar inglés con inferencia local. 
 
 Para retomar el trabajo desde Codex CLI, consulta el [documento de relevo](docs/CODEX_CLI_HANDOFF.md), que registra el entorno, los comandos y los pendientes.
 
+## Versión 0.5.0
+
+Esta versión integra los dos runtimes pendientes de la Fase 1 dentro del
+núcleo C++ y los expone a Flutter mediante jobs asíncronos:
+
+- `llama.cpp` genera el diálogo con Qwen3.5 GGUF y recibe nivel, compañero,
+  recuerdos y resumen como contexto verificado;
+- Supertonic 3 usa su helper C++ y ONNX Runtime para producir WAV PCM16 mono,
+  con la voz `M1` y etiquetas `en`/`es`;
+- la ABI C pasa a v3, con entradas separadas para diálogo y TTS, cancelación y
+  polling no bloqueante;
+- `NativeLlamaDialogueEngine` y `NativeSupertonicSynthesizer` validan los
+  sobres nativos y conservan los contratos de Flutter;
+- los motores reales solo se activan con modelos instalados y verificados por
+  `ModelManager`; sin ellos, la aplicación conserva el modo demo.
+
+El build por defecto sigue sin descargar runtimes. Para reproducir la cadena
+real en host se necesitan los checkouts fijados de Fase 1 y un paquete de
+desarrollo C++ de ONNX Runtime:
+
+```bash
+cmake -S native/core -B build/native-v0.5-all \
+  -DBUILD_TESTING=ON \
+  -DLEARNIT_WITH_LLAMA=ON \
+  -DLEARNIT_LLAMA_ROOT="$PWD/build/phase1/upstream/llama.cpp" \
+  -DLEARNIT_WITH_WHISPER=ON \
+  -DLEARNIT_WHISPER_ROOT="$PWD/build/phase1/upstream/whisper.cpp" \
+  -DLEARNIT_WITH_SUPERTONIC=ON \
+  -DLEARNIT_SUPERTONIC_ROOT="$PWD/build/phase1/upstream/supertonic" \
+  -DLEARNIT_ONNXRUNTIME_ROOT="$PWD/build/phase1/onnxruntime-1.23.1"
+cmake --build build/native-v0.5-all --parallel 2
+ctest --test-dir build/native-v0.5-all --output-on-failure
+LD_LIBRARY_PATH="$PWD/build/phase1/onnxruntime-1.23.1/lib" \
+  build/native-v0.5-all/learnit_native_smoke \
+  --llama build/phase1/models/Qwen3.5-0.8B-Q4_0.gguf \
+  --tts-dir build/phase1/models/supertonic-3/onnx \
+  --voice build/phase1/models/supertonic-3/voice_styles/M1.json
+```
+
+El mismo configure, build, CTest y smoke se puede repetir con
+[`tool/v05_native_smoke.sh`](tool/v05_native_smoke.sh); acepta variables
+`V05_*` para sustituir checkouts, modelos o el directorio de build.
+
+La compilación Android real requiere además una distribución ONNX Runtime
+con headers y bibliotecas para cada ABI Android; el archivo Linux usado para
+el smoke de host no se puede reutilizar en el APK. La validación en Android e
+iOS físicos, pantalla bloqueada y métricas de rendimiento sigue pendiente.
+
 ## Versión 0.4.0
 
 Esta versión inicia la integración nativa real de STT:
@@ -44,8 +92,8 @@ LEARNIT_WHISPER_ROOT="$PWD/../build/phase1/upstream/whisper.cpp" \
   ./gradlew :app:assembleDebug
 ```
 
-La integración de llama.cpp, Supertonic/iOS y la validación en dispositivos
-físicos siguen siendo los siguientes incrementos.
+La integración de llama.cpp y Supertonic queda cubierta por v0.5.0; iOS y la
+validación en dispositivos físicos siguen siendo los siguientes incrementos.
 
 ## Versión 0.3.0
 
@@ -107,15 +155,14 @@ La base inicial contiene:
 - captura PCM16 temporal y reproducción de audio local para validar el ciclo de un turno;
 - configuración de personalidad, correcciones, velocidad de voz y recuerdos con confirmación/edición/borrado;
 - contratos sustituibles para STT, LLM, TTS, memoria y gestión de modelos;
-- un núcleo C++ con ABI v2 y adaptador opcional de `whisper.cpp`, además de los
-  puntos preparados para `llama.cpp` y ONNX Runtime;
+- un núcleo C++ con ABI v3 y adaptadores opcionales de `whisper.cpp`,
+  `llama.cpp` y Supertonic/ONNX Runtime;
 - integración nativa inicial para las sesiones de audio en Android e iOS.
 
 Los modelos y sus pesos no se incluyen en el repositorio. La aplicación muestra
-el modo de demostración hasta que se instale un paquete verificado por
-`ModelManager`; la transcripción real requiere compilar con Whisper y pasar la
-ruta del modelo verificado. Diálogo y síntesis siguen en modo demo hasta
-integrar sus runtimes.
+el modo de demostración hasta que se instalen paquetes/bundles verificados por
+`ModelManager`; cada runtime real recibe únicamente la ruta local resultante de
+esa verificación.
 
 ## Desarrollo y compilación
 

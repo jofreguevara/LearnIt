@@ -27,6 +27,25 @@ archivo, está en [`phase1-artifacts.v0.3.json`](phase1-artifacts.v0.3.json).
 Los pesos y los ejecutables de prueba viven únicamente bajo `build/phase1/`,
 que está excluido del control de versiones.
 
+## Addendum `v0.5.0`
+
+La cadena nativa se amplía a ABI v3. `learnit_core` puede enlazar de forma
+opt-in los tres adaptadores CPU: Whisper, llama.cpp y Supertonic 3/ONNX Runtime.
+La sesión FFI ahora comparte las rutas verificadas de STT, LLM y TTS, y expone
+jobs independientes para transcribir, generar diálogo y sintetizar WAV.
+
+La integración de llama.cpp se probó con el checkout
+`b49650adb31f2e49a0d76113aeb1792134fd8413` y el modelo Qwen3.5 0.8B `Q4_0`.
+La integración de Supertonic se probó con el checkout
+`1e9799e964ea4c0dad7cde993b65c3c813a7b373`, el bundle de siete artefactos de
+revisión `aafc6e32416a594460b32413efc49d7fe4ce6d46` y ONNX Runtime C++ 1.23.1.
+El smoke combinado devolvió un sobre de diálogo válido y audio WAV de voz M1.
+
+El catálogo Flutter mantiene Supertonic como `ModelBundle`; la ruta que llega
+al núcleo se obtiene únicamente con `verifiedBundleDirectory()`. Los pesos y
+la distribución ONNX Runtime siguen fuera de Git. La aplicación conserva el
+modo demo cuando un backend o sus bytes verificados no están disponibles.
+
 ## Matriz de artefactos
 
 | Camino | Candidato fijado | Tamaño | Estado |
@@ -110,9 +129,9 @@ la integración de STT en host, no una integración móvil terminada.
 |---|---|---|
 | Artefactos, procedencia e integridad | **Pasada** | Manifiesto fijado y `validate_phase1_artifacts.sh` sin errores |
 | ABI C++ y contrato Flutter | **Pasada** | CTest y tests Dart pasan; bridge de diálogo valida JSON |
-| ABI v2 y STT Whisper en host | **Pasada** | `learnit_whisper_smoke` carga q5_1 y devuelve texto por la ABI |
+| ABI v3 y STT Whisper en host | **Pasada** | `learnit_whisper_smoke` carga q5_1 y devuelve texto por la ABI |
 | STT, LLM y TTS en host | **Pasada** | Smoke reproducible por componente con pesos exactos |
-| Cadena nativa integrada STT → LLM → TTS | **Pendiente** | Faltan llama.cpp, Supertonic y la orquestación end-to-end dentro de `learnit_core` |
+| Cadena nativa integrada STT → LLM → TTS | **Pasada en host** | ABI v3 y smoke combinado ejercitan los jobs de los tres runtimes; falta repetir audio end-to-end en móvil |
 | Android ARM64, bloqueo y 30 min | **Pendiente** | No hay dispositivo ADB conectado en este entorno |
 | iOS ARM64, bloqueo y 30 min | **Pendiente** | Requiere macOS + Xcode + iPhone físico |
 | Latencia, RAM, temperatura y batería móviles | **Pendiente** | Medir frío/caliente, modo avión, ahorro y presión de memoria |
@@ -120,7 +139,7 @@ la integración de STT en host, no una integración móvil terminada.
 | 100 casos educativos y falsos positivos | **Pendiente** | Revisión por persona competente en enseñanza de inglés |
 | Licencias de bundle y cuantizaciones de tercero | **Pendiente** | Adjuntar avisos y decisión legal antes de distribuir |
 
-Por tanto, `v0.3.0` cierra la infraestructura y la evidencia de host de la
-Fase 1. La entrada a Fase 2 queda deliberadamente bloqueada hasta completar
-las puertas físicas, de integración nativa y de calidad educativa; no se debe
-presentar el modo demo como inferencia local de producción.
+Por tanto, `v0.5.0` cierra la integración de host de la Fase 1, pero no la
+aceptación pública. La entrada a Fase 2 queda deliberadamente bloqueada hasta
+completar las puertas físicas, de rendimiento y de calidad educativa; no se
+debe presentar el modo demo como inferencia local de producción.

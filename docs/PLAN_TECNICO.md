@@ -1,12 +1,12 @@
 # LearnIt — alcance y plan técnico
 
-**Estado:** v0.4.0 — ABI nativa v2 y STT Whisper integrados en host; LLM/TTS y aceptación móvil pendientes<br>
+**Estado:** v0.5.0 — ABI nativa v3 y STT/LLM/TTS integrados en host; aceptación móvil pendiente<br>
 **Público:** adultos<br>
 **Idioma de la interfaz inicial:** español<br>
 **Nombre de trabajo:** LearnIt<br>
 **Compatibilidad inicial:** Android 12+ e iOS 16+, dispositivos ARM64
 
-La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes y puentes nativos de sesión. `v0.4.0` añade una ABI C v2 asíncrona y el adaptador CPU de Whisper dentro del núcleo; llama.cpp, Supertonic, el enlace iOS y la aceptación en dispositivos físicos siguen siendo puertas antes de Fase 2.
+La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes y puentes nativos de sesión. `v0.5.0` añade una ABI C v3 asíncrona y los adaptadores CPU de Whisper, llama.cpp y Supertonic 3/ONNX Runtime dentro del núcleo; el enlace iOS y la aceptación en dispositivos físicos siguen siendo puertas antes de Fase 2.
 
 ## 1. Objetivo
 
@@ -174,6 +174,27 @@ checkout fijado `da54572229bcf64ba367d96c7ef15770376c4280` y ya transcribe el
 modelo base `q5_1` del manifiesto. El build demo permanece disponible sin el
 checkout. La prueba real se ejecuta en host; todavía falta compilar y validar
 la cadena completa en Android/iOS físicos.
+
+#### Incremento de `v0.5.0`
+
+La ABI pasa a v3 y mantiene las sesiones opacas con jobs copy-owning y polling
+no bloqueante; además de transcripción, expone `learnit_core_dialogue_start()`
+y `learnit_core_tts_start()`. El núcleo enlaza de forma opt-in el checkout
+fijado de llama.cpp para generar con el GGUF Qwen3.5 0.8B y el helper C++ de
+Supertonic 3 contra ONNX Runtime. Ambos adaptadores mantienen los tipos de
+terceros fuera del ABI C y serializan el resultado en sobres JSON.
+
+El puente FFI comparte una sesión entre STT, LLM y TTS, y Flutter solo la crea
+cuando `ModelManager` ha verificado los bytes. `NativeLlamaDialogueEngine`
+transporta el contexto de nivel, compañero, recuerdos y resumen; valida
+segmentos bilingües y conserva texto de reserva. `NativeSupertonicSynthesizer`
+valida el WAV PCM16 mono, calcula la onda y lo entrega al playback existente.
+El build sin runtimes continúa siendo reproducible y el smoke combinado de
+host pasa con los artefactos locales de Fase 1.
+
+Quedan fuera de este incremento la distribución de ONNX Runtime para todas las
+ABIs móviles, el framework iOS, audio con pantalla bloqueada y las mediciones
+de latencia/RAM/temperatura/batería en dispositivos físicos.
 
 ### Fase 2 — Flutter e instalación
 

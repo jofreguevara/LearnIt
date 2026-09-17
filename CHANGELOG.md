@@ -1,5 +1,18 @@
 # Historial de cambios
 
+## 0.5.0 — 2026-09-17
+
+- Actualizada la ABI C a v3 con jobs asíncronos para diálogo y síntesis TTS.
+- Integrado `llama.cpp` CPU con Qwen3.5 GGUF y contexto JSON de la sesión.
+- Integrado Supertonic 3 mediante su helper C++ y ONNX Runtime, con WAV
+  PCM16 mono y voz verificada `M1`.
+- Conectados `NativeLlamaDialogueEngine` y
+  `NativeSupertonicSynthesizer` al flujo Flutter cuando hay modelos/bundles
+  verificados.
+- Añadida prueba nativa combinada y actualizado Flutter a `0.5.0+5`.
+- Manteniendo runtimes opt-in y pendientes las pruebas Android/iOS físicas,
+  bloqueo de pantalla y métricas de campo.
+
 ## 0.4.0 — 2026-09-17
 
 - Añadida ABI C v2 con sesiones nativas opacas, jobs de transcripción
