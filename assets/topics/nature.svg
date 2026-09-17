@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 110" role="img" aria-label="Nature illustration">
+  <rect width="160" height="110" rx="18" fill="#e7f6ec"/>
+  <circle cx="123" cy="28" r="14" fill="#ffd166"/>
+  <path d="M0 82c32-25 47-18 70-4 25-25 50-26 90 4v28H0Z" fill="#83bd8c"/>
+  <path d="m35 78 18-41 18 41M45 59h17" fill="none" stroke="#477c58" stroke-width="6" stroke-linecap="round"/>
+  <path d="M102 84c0-22 17-28 25-31-1 18-7 30-25 31Z" fill="#477c58"/>
+</svg>

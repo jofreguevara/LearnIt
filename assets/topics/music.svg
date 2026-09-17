@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 110" role="img" aria-label="Music illustration">
+  <rect width="160" height="110" rx="18" fill="#f2eaff"/>
+  <path d="M66 28v50a13 13 0 1 1-7-12V39l42-10v42a13 13 0 1 1-7-12V20Z" fill="#7f5bb6"/>
+  <circle cx="52" cy="82" r="10" fill="#ff8da1"/>
+  <circle cx="101" cy="72" r="10" fill="#ff8da1"/>
+  <path d="M119 27c8 6 9 14 4 21M128 20c12 10 14 22 7 32" fill="none" stroke="#f59f64" stroke-width="4" stroke-linecap="round"/>
+</svg>

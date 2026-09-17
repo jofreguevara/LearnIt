@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 110" role="img" aria-label="Travel illustration">
+  <rect width="160" height="110" rx="18" fill="#e9f1ff"/>
+  <circle cx="125" cy="27" r="13" fill="#ffd166"/>
+  <path d="M18 82h124" stroke="#8aa5d6" stroke-width="5" stroke-linecap="round"/>
+  <path d="M58 70 79 35l18 35Z" fill="#6c8ed1"/>
+  <path d="m79 35 7 35h-14Z" fill="#f5fbff"/>
+  <path d="m32 74 17-20 12 20Z" fill="#8db59a"/>
+</svg>

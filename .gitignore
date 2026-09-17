@@ -1,0 +1,20 @@
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+
+# Model weights and local runtime state must never enter source control.
+models/
+*.gguf
+*.onnx
+*.bin
+*.part
+*.sqlite
+*.sqlite-*
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
