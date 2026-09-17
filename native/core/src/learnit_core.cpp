@@ -56,7 +56,11 @@ char *copy_string(const std::string &value) {
 }  // namespace
 
 const char *learnit_core_version(void) {
-  return "learnit-core/0.2-native-spike";
+  return "learnit-core/0.3-phase1-spike";
+}
+
+const char *learnit_core_capabilities(void) {
+  return "{\"phase\":1,\"runtime\":\"native-spike\",\"components\":[\"dialogue\"],\"models_verified\":false}";
 }
 
 char *learnit_demo_reply(const char *input, const char *language) {

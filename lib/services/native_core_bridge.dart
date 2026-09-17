@@ -19,6 +19,10 @@ class NativeCoreBridge implements NativeDialogueClient {
       : _version = library.lookupFunction<_VersionNative, _VersionDart>(
           'learnit_core_version',
         ),
+        _capabilities =
+            library.lookupFunction<_CapabilitiesNative, _CapabilitiesDart>(
+          'learnit_core_capabilities',
+        ),
         _demoReply = library.lookupFunction<_DemoReplyNative, _DemoReplyDart>(
           'learnit_demo_reply',
         ),
@@ -28,6 +32,7 @@ class NativeCoreBridge implements NativeDialogueClient {
         );
 
   final _VersionDart _version;
+  final _CapabilitiesDart _capabilities;
   final _DemoReplyDart _demoReply;
   final _FreeStringDart _freeString;
 
@@ -44,6 +49,12 @@ class NativeCoreBridge implements NativeDialogueClient {
 
   @override
   String get version => _version().toDartString();
+
+  /// JSON capabilities advertised by the native runtime.
+  ///
+  /// This is intentionally separate from [NativeDialogueClient] so the
+  /// Flutter session contract remains stable while the native spike grows.
+  String get capabilities => _capabilities().toDartString();
 
   @override
   String generateReply({required String input, required String language}) =>
@@ -71,6 +82,8 @@ class NativeCoreBridge implements NativeDialogueClient {
 
 typedef _VersionNative = Pointer<Utf8> Function();
 typedef _VersionDart = Pointer<Utf8> Function();
+typedef _CapabilitiesNative = Pointer<Utf8> Function();
+typedef _CapabilitiesDart = Pointer<Utf8> Function();
 typedef _DemoReplyNative = Pointer<Utf8> Function(
   Pointer<Utf8> input,
   Pointer<Utf8> language,

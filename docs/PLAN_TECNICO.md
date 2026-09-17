@@ -1,12 +1,12 @@
 # LearnIt — alcance y plan técnico
 
-**Estado:** v0.2.0 — infraestructura de Fase 1 en implementación; modelos reales pendientes de validación<br>
+**Estado:** v0.3.0 — infraestructura y evidencia reproducible de Fase 1 cerradas; aceptación móvil pendiente<br>
 **Público:** adultos<br>
 **Idioma de la interfaz inicial:** español<br>
 **Nombre de trabajo:** LearnIt<br>
 **Compatibilidad inicial:** Android 12+ e iOS 16+, dispositivos ARM64
 
-La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes y puentes nativos de sesión. Los pesos reales y sus adaptadores de inferencia se incorporan después de cerrar la Fase 1 en dispositivos físicos.
+La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes y puentes nativos de sesión. `v0.3.0` fija los artefactos candidatos y valida los runtimes por componente en host; los adaptadores de inferencia dentro del núcleo y la aceptación en dispositivos físicos siguen siendo puertas antes de Fase 2.
 
 ## 1. Objetivo
 
@@ -146,6 +146,20 @@ Cerrar requisitos, flujos, bocetos, interfaces, esquema local, matriz de modelos
 
 Construir una prueba nativa mínima STT → LLM → TTS, comparar `tiny/base`, LLM 0.8B/2B/4B y Supertonic 3/2, probar mezcla EN/ES, misma voz y sesiones bloqueadas en Android/iOS. Entregar matriz de latencia, RAM, tamaño, temperatura, batería, errores e inteligibilidad. Esta fase decide qué combinaciones pueden continuar.
 
+#### Resultado de `v0.3.0`
+
+El paquete reproducible de ingeniería queda cerrado: `ModelPackage` acepta
+fuentes fijadas a commits, `ModelBundle` instala Supertonic 3 como unidad
+multiarchivo, el catálogo conserva hashes exactos y el ABI tiene smoke test
+CTest. Whisper base `q5_1`, Qwen3.5 0.8B `Q4_0` y Supertonic 3 producen evidencia
+de host; tiny, 2B y 4B quedan en la matriz de comparación.
+
+La fase no se marca como aceptación pública todavía. Falta enlazar los
+adaptadores reales al núcleo C++/FFI y repetir la cadena completa en Android e
+iOS físicos: latencia, RAM, temperatura, batería, 30 minutos con pantalla
+bloqueada, corpus bilingüe y evaluación educativa. El detalle y los resultados
+reproducibles están en [`docs/FASE1_VALIDACION.md`](FASE1_VALIDACION.md).
+
 ### Fase 2 — Flutter e instalación
 
 Crear proyecto Flutter, puente FFI, gestor de modelos, bienvenida, permisos, descarga reanudable, verificación SHA-256, selección de perfil, espacio disponible y funcionamiento desde cero en modo avión.
@@ -205,7 +219,7 @@ Optimizar accesibilidad, consumo y tamaño; probar actualizaciones/migraciones, 
 5. **Supertonic archivado:** fijar versión y mantener `SpeechSynthesizer` sustituible; revisar OpenRAIL-M y voces antes de publicar.
 6. **Memoria efímera:** el último resumen es el punto de recuperación; un turno incompleto puede perderse por diseño.
 
-Decisiones pendientes antes de Fase 2: dispositivos exactos de prueba, versiones mínimas de Android/iOS, pesos y voces concretos con hashes, proveedor de imágenes con licencia compatible, política de actualizaciones, texto legal de IA/OpenRAIL-M y umbrales de calidad por cada nivel.
+Decisiones pendientes antes de Fase 2: dispositivos exactos de prueba, versiones mínimas de Android/iOS, adaptadores nativos integrados, resultado de la comparación 0.8B/2B/4B, voces concretas con hashes, proveedor de imágenes con licencia compatible, política de actualizaciones, texto legal de IA/OpenRAIL-M y umbrales de calidad por cada nivel.
 
 ## 11. Fichas de funcionalidad y trazabilidad
 

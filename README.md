@@ -4,6 +4,36 @@ LearnIt es una aplicación Flutter para practicar inglés con inferencia local. 
 
 Para retomar el trabajo desde Codex CLI, consulta el [documento de relevo](docs/CODEX_CLI_HANDOFF.md), que registra el entorno, los comandos y los pendientes.
 
+## Versión 0.3.0
+
+Esta versión cierra el paquete reproducible de ingeniería de la Fase 1:
+
+- `ModelPackage` usa revisiones inmutables y redirecciones HTTPS seguras;
+- `ModelBundle` instala de forma atómica los siete artefactos de Supertonic 3;
+- el catálogo fija Whisper base `q5_1` y Qwen3.5 0.8B `Q4_0`, con tiny/2B/4B
+  descritos como candidatos de comparación;
+- el ABI nativo publica capacidades y tiene un smoke test CTest;
+- [`docs/FASE1_VALIDACION.md`](docs/FASE1_VALIDACION.md) conserva la matriz,
+  las mediciones de host y las puertas que todavía requieren hardware.
+
+Los nueve artefactos seleccionados se verificaron fuera de Git por tamaño y
+SHA-256. La aplicación sigue usando modo demo por defecto: la integración de
+los runtimes reales dentro del núcleo nativo y la certificación en teléfonos
+son puertas explícitas antes de abrir la Fase 2.
+
+Para repetir la validación de artefactos:
+
+```bash
+./tool/validate_phase1_artifacts.sh
+```
+
+Para repetir los smoke tests de host, después de preparar los ejecutables de
+`whisper.cpp`, `llama.cpp` y el ejemplo ONNX de Supertonic:
+
+```bash
+./tool/phase1_host_smoke.sh
+```
+
 ## Versión 0.2.0
 
 Esta versión prepara la infraestructura del spike nativo de la Fase 1:
@@ -37,7 +67,11 @@ La base inicial contiene:
 - un núcleo C++ mínimo preparado para enlazar `whisper.cpp`, `llama.cpp` y ONNX Runtime en la Fase 1;
 - integración nativa inicial para las sesiones de audio en Android e iOS.
 
-Los modelos y sus pesos no se incluyen en el repositorio. La aplicación muestra el modo de demostración hasta que se instale un paquete verificado por `ModelManager`; el catálogo contiene hashes pendientes de la prueba de viabilidad y no se puede publicar como paquete final todavía.
+Los modelos y sus pesos no se incluyen en el repositorio. La aplicación muestra
+el modo de demostración hasta que se instale un paquete verificado por
+`ModelManager`; el catálogo de v0.3.0 fija candidatos de STT/LLM y expone el
+bundle TTS, pero no habilita inferencia de producción sin los adaptadores
+nativos y las pruebas físicas de [`docs/FASE1_VALIDACION.md`](docs/FASE1_VALIDACION.md).
 
 ## Desarrollo y compilación
 
@@ -52,6 +86,7 @@ flutter analyze
 flutter test
 cmake -S native/core -B build/native -DCMAKE_BUILD_TYPE=Release
 cmake --build build/native
+ctest --test-dir build/native --output-on-failure
 flutter build apk --debug
 flutter build apk --release
 flutter build appbundle --release

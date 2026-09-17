@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 const char *learnit_core_version(void);
+const char *learnit_core_capabilities(void);
 char *learnit_demo_reply(const char *input, const char *language);
 void learnit_free_string(char *value);
 

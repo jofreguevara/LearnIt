@@ -13,10 +13,11 @@ memoria y gestión de modelos. El núcleo C++ se compila como `learnit_core` y
 se empaqueta en Android para `arm64-v8a`, `armeabi-v7a` y `x86_64` mediante
 `android/app/src/main/cpp/CMakeLists.txt`.
 
-La versión v0.2.0 añade validación de metadatos, instalación atómica y lectura
-del manifiesto de modelos, además de `NativeDialogueEngine` para validar el
-contrato JSON del puente nativo. El modo demo sigue siendo el predeterminado;
-los pesos y adaptadores de inferencia reales continúan pendientes del spike.
+La versión v0.3.0 cierra la infraestructura reproducible de la Fase 1: fija
+artefactos, añade bundles multiarchivo, sigue redirecciones HTTPS de forma
+segura, publica capacidades del ABI nativo y añade smoke tests CTest/host. El
+modo demo sigue siendo el predeterminado; los adaptadores de inferencia reales
+todavía no están enlazados dentro de `learnit_core`.
 
 ## Entorno instalado
 
@@ -42,9 +43,11 @@ flutter build apk --release
 flutter build appbundle --release
 ```
 
-La validación de v0.2.0 produjo 18 tests pasados y análisis sin incidencias;
-también compilaron el núcleo C++ y un APK debug con
-`LEARNIT_NATIVE_SPIKE=true`.
+La validación de v0.3.0 produjo 22 tests Flutter pasados, análisis sin
+incidencias, CTest nativo pasado y 9/9 artefactos fijados verificados por
+tamaño + SHA-256. También se ejecutaron smoke tests de host para Whisper,
+Qwen3.5 0.8B y Supertonic 3; sus cifras y límites están en
+[`docs/FASE1_VALIDACION.md`](FASE1_VALIDACION.md).
 
 ## Artefactos recientes
 
@@ -58,17 +61,17 @@ conectado por ADB durante la compilación.
 
 ## Pendientes prioritarios
 
-1. Completar la Fase 1 con artefactos inmutables de Whisper, Qwen y Supertonic:
-   fijar versión, URL, licencia, tamaño y SHA-256 en `ModelManager`.
-2. Sustituir `DemoSpeechRecognizer`, `DemoDialogueEngine` y
-   `DemoSpeechSynthesizer` por adaptadores nativos (whisper.cpp, llama.cpp y
-   ONNX Runtime), manteniendo las interfaces de `lib/services/engines.dart`.
-3. Medir latencia, RAM, temperatura y batería en teléfonos físicos; validar
+1. Integrar los adaptadores reales de whisper.cpp, llama.cpp y ONNX Runtime en
+   `learnit_core`/FFI, manteniendo las interfaces de `lib/services/engines.dart`.
+2. Medir latencia, RAM, temperatura y batería en teléfonos físicos; validar
    sesiones bloqueadas, llamadas, auriculares, presión de memoria y modo avión.
+3. Ejecutar el corpus bilingüe y los 100 casos educativos con los artefactos
+   exactos; conservar la matriz de resultados.
 4. Revisar cifrado/backup de SQLite, borrado de datos derivados y migraciones.
 5. Compilar iOS en macOS con Xcode; el proyecto ya está configurado para iOS
    16, micrófono y audio en segundo plano.
-6. Añadir firma Android de release y preparar fichas de tienda.
+6. Adjuntar revisión legal de OpenRAIL-M/cuantizaciones y añadir firma Android
+   de release antes de preparar fichas de tienda.
 
 ## Archivos de referencia
 

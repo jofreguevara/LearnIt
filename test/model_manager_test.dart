@@ -110,6 +110,7 @@ void main() {
       license: 'Apache-2.0',
       sizeBytes: 42,
       sourceUrl: 'https://example.test/model.gguf',
+      sourceRevision: 'a' * 40,
     );
     final manager = ModelManager(rootDirectory: temporaryDirectory);
 
@@ -118,6 +119,118 @@ void main() {
 
     expect(loaded.single.toMap(), package.toMap());
     expect(loaded.single.isPinned, isTrue);
+    expect(loaded.single.isImmutable, isFalse);
+  });
+
+  test('accepts catalog entries pinned to an immutable HTTPS revision', () {
+    final package = defaultModelCatalog().first;
+
+    expect(package.isImmutable, isTrue);
+    expect(package.sourceRevision, hasLength(40));
+    expect(package.sourceUrl, contains('/resolve/${package.sourceRevision}/'));
+  });
+
+  test('declares the complete Supertonic 3 bundle as immutable', () {
+    final bundle = supertonic3Bundle(CapabilityProfile.basic);
+
+    expect(bundle.artifacts, hasLength(7));
+    expect(bundle.sizeBytes, 398652950);
+    expect(bundle.isImmutable, isTrue);
+  });
+
+  test('rejects mutable download sources even with valid file metadata',
+      () async {
+    final temporaryDirectory =
+        await Directory.systemTemp.createTemp('learnit-mutable-source-');
+    addTearDown(() => temporaryDirectory.delete(recursive: true));
+
+    final package = ModelPackage(
+      id: 'mutable-model',
+      profile: CapabilityProfile.basic,
+      component: ModelComponent.dialogue,
+      version: '1',
+      fileName: 'model.gguf',
+      sha256: 'a' * 64,
+      license: 'Apache-2.0',
+      sizeBytes: 42,
+      sourceUrl: 'https://example.test/model.gguf',
+    );
+    final manager = ModelManager(rootDirectory: temporaryDirectory);
+
+    expect(package.isImmutable, isFalse);
+    await expectLater(
+      manager.download(package),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('imports and activates a verified multi-file model bundle', () async {
+    final temporaryDirectory =
+        await Directory.systemTemp.createTemp('learnit-bundle-');
+    addTearDown(() => temporaryDirectory.delete(recursive: true));
+
+    final sourceDirectory = Directory('${temporaryDirectory.path}/sources');
+    await sourceDirectory.create();
+    final firstSource = File('${sourceDirectory.path}/first.bin');
+    final secondSource = File('${sourceDirectory.path}/second.json');
+    final firstBytes = <int>[1, 2, 3];
+    final secondBytes = <int>[4, 5, 6, 7];
+    await firstSource.writeAsBytes(firstBytes);
+    await secondSource.writeAsBytes(secondBytes);
+    final revision = 'b' * 40;
+    final bundle = ModelBundle(
+      id: 'tts-bundle',
+      profile: CapabilityProfile.basic,
+      component: ModelComponent.speechSynthesizer,
+      version: revision,
+      artifacts: <ModelArtifact>[
+        ModelArtifact(
+          id: 'first',
+          relativePath: 'onnx/first.bin',
+          version: revision,
+          sha256: sha256.convert(firstBytes).toString(),
+          license: 'MIT',
+          sizeBytes: firstBytes.length,
+          sourceUrl: 'https://example.test/resolve/$revision/onnx/first.bin',
+          sourceRevision: revision,
+        ),
+        ModelArtifact(
+          id: 'second',
+          relativePath: 'onnx/second.json',
+          version: revision,
+          sha256: sha256.convert(secondBytes).toString(),
+          license: 'MIT',
+          sizeBytes: secondBytes.length,
+          sourceUrl: 'https://example.test/resolve/$revision/onnx/second.json',
+          sourceRevision: revision,
+        ),
+      ],
+    );
+    final manager = ModelManager(rootDirectory: temporaryDirectory);
+
+    final imported = await manager.importBundle(
+      bundle,
+      <String, File>{'first': firstSource, 'second': secondSource},
+    );
+    expect(imported.ready, isTrue);
+    await manager.activateBundle(bundle);
+    expect(
+      (await manager
+              .activeBundles(CapabilityProfile.basic, <ModelBundle>[bundle]))
+          .single
+          .id,
+      'tts-bundle',
+    );
+
+    await secondSource.writeAsBytes(<int>[9, 8, 7]);
+    await expectLater(
+      manager.importBundle(
+        bundle,
+        <String, File>{'first': firstSource, 'second': secondSource},
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect((await manager.verifyBundle(bundle)).ready, isTrue);
   });
 
   test('does not download a package with placeholder metadata', () async {
