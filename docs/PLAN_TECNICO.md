@@ -1,12 +1,12 @@
 # LearnIt — alcance y plan técnico
 
-**Estado:** v0.3.0 — infraestructura y evidencia reproducible de Fase 1 cerradas; aceptación móvil pendiente<br>
+**Estado:** v0.4.0 — ABI nativa v2 y STT Whisper integrados en host; LLM/TTS y aceptación móvil pendientes<br>
 **Público:** adultos<br>
 **Idioma de la interfaz inicial:** español<br>
 **Nombre de trabajo:** LearnIt<br>
 **Compatibilidad inicial:** Android 12+ e iOS 16+, dispositivos ARM64
 
-La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes y puentes nativos de sesión. `v0.3.0` fija los artefactos candidatos y valida los runtimes por componente en host; los adaptadores de inferencia dentro del núcleo y la aceptación en dispositivos físicos siguen siendo puertas antes de Fase 2.
+La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes y puentes nativos de sesión. `v0.4.0` añade una ABI C v2 asíncrona y el adaptador CPU de Whisper dentro del núcleo; llama.cpp, Supertonic, el enlace iOS y la aceptación en dispositivos físicos siguen siendo puertas antes de Fase 2.
 
 ## 1. Objetivo
 
@@ -159,6 +159,21 @@ adaptadores reales al núcleo C++/FFI y repetir la cadena completa en Android e
 iOS físicos: latencia, RAM, temperatura, batería, 30 minutos con pantalla
 bloqueada, corpus bilingüe y evaluación educativa. El detalle y los resultados
 reproducibles están en [`docs/FASE1_VALIDACION.md`](FASE1_VALIDACION.md).
+
+#### Incremento de `v0.4.0`
+
+El ABI nativo pasa a v2 y expone sesiones opacas con carga diferida, jobs de
+transcripción que copian el PCM16 y pueden cancelarse, polling no bloqueante y
+sobres JSON de éxito/error. `NativeCoreSession` consume esa frontera mediante
+`dart:ffi`; `NativeSpeechRecognizer` valida la respuesta y conserva el
+contrato `SpeechRecognizer`. `ModelManager.verifiedFileFor()` entrega la ruta
+local únicamente después de comprobar tamaño y SHA-256.
+
+El adaptador CPU de `whisper.cpp` se enlaza opcionalmente desde CMake contra el
+checkout fijado `da54572229bcf64ba367d96c7ef15770376c4280` y ya transcribe el
+modelo base `q5_1` del manifiesto. El build demo permanece disponible sin el
+checkout. La prueba real se ejecuta en host; todavía falta compilar y validar
+la cadena completa en Android/iOS físicos.
 
 ### Fase 2 — Flutter e instalación
 

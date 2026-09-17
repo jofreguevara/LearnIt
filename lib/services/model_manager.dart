@@ -556,6 +556,20 @@ class ModelManager {
     return _verifyFile(package, file);
   }
 
+  /// Returns a model path only after the installed bytes pass the catalog
+  /// size and SHA-256 checks. Native runtimes receive this path; they never
+  /// resolve URLs or decide which package is trusted.
+  Future<File> verifiedFileFor(ModelPackage package) async {
+    final file = await fileFor(package);
+    final verification = await _verifyFile(package, file);
+    if (!verification.ready) {
+      throw StateError(
+        'El paquete ${package.id} no está instalado y verificado.',
+      );
+    }
+    return file;
+  }
+
   Future<ModelVerification> _verifyFile(
     ModelPackage package,
     File file,

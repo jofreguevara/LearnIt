@@ -1,5 +1,18 @@
 # Historial de cambios
 
+## 0.4.0 — 2026-09-17
+
+- Añadida ABI C v2 con sesiones nativas opacas, jobs de transcripción
+  asíncronos, cancelación y sobres JSON de éxito/error.
+- Añadido adaptador CPU de `whisper.cpp` con PCM16 mono a 16 kHz, detección de
+  idioma EN/ES y confianza agregada por tokens.
+- Añadido enlace CMake opcional a un checkout fijado de `whisper.cpp`, sin
+  cambiar el build demo por defecto.
+- Añadido `NativeSpeechRecognizer` y entrega de rutas verificadas desde
+  `ModelManager`.
+- Añadido smoke executable para validar STT real con el modelo de Fase 1.
+- Actualizada la versión Flutter a `0.4.0+4`.
+
 ## 0.3.0 — 2026-09-17
 
 - Cerrado el manifiesto reproducible de la Fase 1 con revisiones, URLs,

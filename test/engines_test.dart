@@ -20,6 +20,23 @@ class _FakeNativeDialogueClient implements NativeDialogueClient {
       payload;
 }
 
+class _FakeNativeWhisperClient implements NativeWhisperClient {
+  _FakeNativeWhisperClient(this.payload);
+
+  final String payload;
+  bool cancelled = false;
+
+  @override
+  Future<String> transcribe({
+    required Uint8List audio,
+    required String language,
+  }) async =>
+      payload;
+
+  @override
+  void cancel() => cancelled = true;
+}
+
 void main() {
   test('demo dialogue emits a correction for a common learner error', () async {
     const engine = DemoDialogueEngine();
@@ -111,6 +128,47 @@ void main() {
         lastSummary: null,
       ),
       throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('native speech recognizer parses a Whisper transcript envelope',
+      () async {
+    final recognizer = NativeSpeechRecognizer(
+      _FakeNativeWhisperClient(
+        jsonEncode(<String, Object?>{
+          'ok': true,
+          'type': 'transcript',
+          'text': 'Hello, I practice English.',
+          'language': 'en',
+          'confidence': 0.87,
+        }),
+      ),
+    );
+
+    final transcript = await recognizer.transcribe(
+      Uint8List.fromList(<int>[0, 0]),
+      hint: LanguageCode.en,
+    );
+
+    expect(transcript.text, 'Hello, I practice English.');
+    expect(transcript.language, LanguageCode.en);
+    expect(transcript.confidence, closeTo(0.87, 0.001));
+  });
+
+  test('native speech recognizer exposes backend errors', () async {
+    final recognizer = NativeSpeechRecognizer(
+      _FakeNativeWhisperClient(
+        '{"ok":false,"error":{"code":"cancelled","message":"stop"}}',
+      ),
+    );
+
+    await expectLater(
+      recognizer.transcribe(Uint8List.fromList(<int>[0, 0])),
+      throwsA(
+        predicate<Object>(
+          (error) => error.toString().contains('cancelled: stop'),
+        ),
+      ),
     );
   });
 }

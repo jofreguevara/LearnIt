@@ -81,10 +81,28 @@ Los smoke tests de esta sesión usaron `whisper.cpp` en el commit
 `b49650adb31f2e49a0d76113aeb1792134fd8413` y el ejemplo Python de Supertonic
 en `1e9799e964ea4c0dad7cde993b65c3c813a7b373`.
 
+## Addendum `v0.4.0`
+
+El núcleo ya expone ABI v2 con sesiones opacas, jobs de transcripción
+cancelables, polling no bloqueante y transferencia copy-owning de PCM16. El
+adaptador CPU de Whisper se enlaza de forma explícita con CMake contra el
+checkout fijado anterior y el ejecutable `learnit_whisper_smoke` carga el
+modelo base `q5_1` mediante la ABI, detecta inglés y devuelve un sobre JSON con
+texto y confianza por tokens.
+
+La ruta Dart correspondiente es `NativeCoreSession` →
+`NativeSpeechRecognizer`; `ModelManager.verifiedFileFor()` evita pasar al
+núcleo una ruta que no haya superado tamaño y SHA-256. El build sin el checkout
+de Whisper continúa disponible para tests y demo.
+
+Esta entrega cubre únicamente STT. No se considera cerrada la cadena
+STT → LLM → TTS ni la aceptación móvil: llama.cpp, Supertonic, el enlace iOS,
+Android ARM64 en dispositivo físico y las métricas de campo siguen pendientes.
+
 Las cifras anteriores son smoke tests por componente en host. El ABI de LearnIt
-sigue marcando `models_verified:false` porque los adaptadores C++ de producción
-todavía no están enlazados al núcleo Flutter; el script de host demuestra la
-viabilidad de los runtimes seleccionados, no una integración móvil terminada.
+sigue marcando `models_verified:false` porque la verificación de hashes es
+responsabilidad de Dart/`ModelManager`; el script y el smoke de ABI demuestran
+la integración de STT en host, no una integración móvil terminada.
 
 ## Puertas de aceptación pendientes
 
@@ -92,8 +110,9 @@ viabilidad de los runtimes seleccionados, no una integración móvil terminada.
 |---|---|---|
 | Artefactos, procedencia e integridad | **Pasada** | Manifiesto fijado y `validate_phase1_artifacts.sh` sin errores |
 | ABI C++ y contrato Flutter | **Pasada** | CTest y tests Dart pasan; bridge de diálogo valida JSON |
+| ABI v2 y STT Whisper en host | **Pasada** | `learnit_whisper_smoke` carga q5_1 y devuelve texto por la ABI |
 | STT, LLM y TTS en host | **Pasada** | Smoke reproducible por componente con pesos exactos |
-| Cadena nativa integrada STT → LLM → TTS | **Pendiente** | Faltan adaptadores reales dentro de `learnit_core` y FFI de buffers |
+| Cadena nativa integrada STT → LLM → TTS | **Pendiente** | Faltan llama.cpp, Supertonic y la orquestación end-to-end dentro de `learnit_core` |
 | Android ARM64, bloqueo y 30 min | **Pendiente** | No hay dispositivo ADB conectado en este entorno |
 | iOS ARM64, bloqueo y 30 min | **Pendiente** | Requiere macOS + Xcode + iPhone físico |
 | Latencia, RAM, temperatura y batería móviles | **Pendiente** | Medir frío/caliente, modo avión, ahorro y presión de memoria |

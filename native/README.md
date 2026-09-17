@@ -1,10 +1,13 @@
 # Núcleo nativo
 
-`core/` expone un ABI C pequeño para que Flutter pueda cargar una biblioteca compartida con `dart:ffi`. La implementación actual (`learnit-core/0.3-phase1-spike`) publica versión/capacidades, verifica el contrato y devuelve una respuesta de demostración; todavía no pretende sustituir los adaptadores de modelo de producción.
+`core/` expone un ABI C v2 para que Flutter pueda cargar una biblioteca
+compartida con `dart:ffi`. El ABI conserva el diálogo demo y añade sesiones
+opacas, jobs de STT cancelables y un adaptador CPU real de `whisper.cpp` cuando
+se habilita explícitamente su checkout fijado.
 
-## Fase 1
+## Build sin runtime
 
-Para comprobar solo el ABI durante el spike:
+Para comprobar solo la ABI:
 
 ```bash
 cmake -S native/core -B build/native -DCMAKE_BUILD_TYPE=Release
@@ -12,25 +15,55 @@ cmake --build build/native --parallel 2
 ctest --test-dir build/native --output-on-failure
 ```
 
-El artefacto resultante debe copiarse como `liblearnit_core.so` en cada ABI de
-Android o empaquetarse como framework de iOS; el host generado por Flutter se
-encarga del resto del enlace.
+Este build devuelve un error explícito si se solicita STT sin un backend
+Whisper. El artefacto resultante debe copiarse como `liblearnit_core.so` en
+cada ABI de Android o empaquetarse como framework de iOS.
 
-1. Fijar revisiones y hashes de `whisper.cpp`, `llama.cpp`, ONNX Runtime y los artefactos de voz.
-2. Implementar adaptadores que respeten las interfaces Dart de `SpeechRecognizer`, `DialogueEngine` y `SpeechSynthesizer`.
-3. Compilar ARM64 para Android y el framework/XCFramework de iOS; mantener CPU como ruta de pantalla bloqueada.
-4. Exponer buffers cancelables y liberar toda memoria que cruce el ABI.
-5. Ejecutar la matriz de rendimiento de `docs/PLAN_TECNICO.md` con los pesos exactos que se distribuirán.
+## Build con Whisper real
 
-El `NativeDialogueEngine` de v0.2.0 ya valida el sobre JSON de esta frontera;
-la respuesta actual sigue siendo de smoke test mientras los adaptadores reales
-se incorporan al núcleo. El endpoint `learnit_core_capabilities` deja explícito
-qué componentes están implementados en el ABI actual.
+El checkout debe estar fijado al commit usado por la validación de Fase 1:
+`da54572229bcf64ba367d96c7ef15770376c4280`. Los pesos permanecen fuera de Git.
 
-La aplicación lo activa de forma optativa con
-`--dart-define=LEARNIT_NATIVE_SPIKE=true`; sin esa bandera conserva el diálogo
-demo para no cambiar el flujo por defecto.
+```bash
+cmake -S native/core -B build/native-v0.4-whisper \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+  -DLEARNIT_WITH_WHISPER=ON \
+  -DLEARNIT_WHISPER_ROOT="$PWD/build/phase1/upstream/whisper.cpp"
+cmake --build build/native-v0.4-whisper --parallel 2
+ctest --test-dir build/native-v0.4-whisper --output-on-failure
+LD_LIBRARY_PATH="$PWD/build/native-v0.4-whisper/whisper.cpp/bin:$PWD/build/native-v0.4-whisper" \
+  build/native-v0.4-whisper/learnit_whisper_smoke \
+  build/phase1/models/ggml-base-q5_1.bin build/phase1/jfk.wav
+```
 
-La aplicación no descarga modelos desde el núcleo. `ModelManager` aprovisiona,
-verifica SHA-256 y activa paquetes o bundles por perfil; el núcleo recibe
-únicamente rutas locales validadas.
+El smoke executable carga el modelo, ejecuta el adaptador a través de la ABI y
+devuelve el sobre JSON de transcripción. La entrada es PCM16 mono a 16 kHz.
+
+Para Android se puede pasar la misma ruta desde `android/`. Al cambiar entre
+builds con y sin runtime, limpia primero los artefactos nativos:
+
+```bash
+./gradlew :app:clean
+LEARNIT_WITH_WHISPER=ON \
+LEARNIT_WHISPER_ROOT="$PWD/../build/phase1/upstream/whisper.cpp" \
+  ./gradlew :app:assembleDebug
+```
+
+`ModelManager` es responsable de verificar el archivo y entregar su ruta al
+constructor de la sesión. El núcleo no descarga ni valida URLs.
+
+## Siguiente integración
+
+1. Añadir el adaptador llama.cpp y ampliar el request nativo con contexto de
+   nivel, compañero, memoria y resumen.
+2. Añadir el adaptador ONNX de Supertonic 3 y devolver WAV/PCM al contrato de
+   `SpeechSynthesizer`.
+3. Compilar ARM64 para Android y el framework/XCFramework de iOS; mantener
+   CPU como ruta de pantalla bloqueada.
+4. Ejecutar la matriz de latencia, RAM, temperatura y batería con los pesos
+   exactos que se distribuirán.
+
+El `NativeDialogueEngine` sigue validando el sobre JSON de diálogo.
+`NativeSpeechRecognizer` valida el sobre JSON de STT y
+`learnit_core_capabilities` deja explícito si la biblioteca fue compilada con
+el backend Whisper.

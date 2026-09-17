@@ -13,11 +13,12 @@ memoria y gestión de modelos. El núcleo C++ se compila como `learnit_core` y
 se empaqueta en Android para `arm64-v8a`, `armeabi-v7a` y `x86_64` mediante
 `android/app/src/main/cpp/CMakeLists.txt`.
 
-La versión v0.3.0 cierra la infraestructura reproducible de la Fase 1: fija
-artefactos, añade bundles multiarchivo, sigue redirecciones HTTPS de forma
-segura, publica capacidades del ABI nativo y añade smoke tests CTest/host. El
-modo demo sigue siendo el predeterminado; los adaptadores de inferencia reales
-todavía no están enlazados dentro de `learnit_core`.
+La versión v0.4.0 inicia la integración real: el ABI v2 expone sesiones opacas,
+jobs de STT cancelables y `NativeSpeechRecognizer`; `learnit_core` puede
+enlazar el checkout fijado de `whisper.cpp` por CMake y el smoke executable ya
+transcribe el audio de muestra con el modelo real. El build y el modo demo
+siguen siendo predeterminados sin ese checkout; llama.cpp, Supertonic, iOS y
+las pruebas físicas siguen pendientes.
 
 ## Entorno instalado
 
@@ -43,10 +44,11 @@ flutter build apk --release
 flutter build appbundle --release
 ```
 
-La validación de v0.3.0 produjo 22 tests Flutter pasados, análisis sin
-incidencias, CTest nativo pasado y 9/9 artefactos fijados verificados por
-tamaño + SHA-256. También se ejecutaron smoke tests de host para Whisper,
-Qwen3.5 0.8B y Supertonic 3; sus cifras y límites están en
+La validación de v0.4.0 produjo 24 tests Flutter pasados, análisis sin
+incidencias, CTest nativo con y sin Whisper pasado y una transcripción real
+desde la ABI contra el modelo Whisper base q5_1. La validación de artefactos y
+los smoke tests de host para Whisper, Qwen3.5 0.8B y Supertonic 3 mantienen sus
+cifras y límites en
 [`docs/FASE1_VALIDACION.md`](FASE1_VALIDACION.md).
 
 ## Artefactos recientes
@@ -61,8 +63,8 @@ conectado por ADB durante la compilación.
 
 ## Pendientes prioritarios
 
-1. Integrar los adaptadores reales de whisper.cpp, llama.cpp y ONNX Runtime en
-   `learnit_core`/FFI, manteniendo las interfaces de `lib/services/engines.dart`.
+1. Integrar llama.cpp y ONNX Runtime en `learnit_core`/FFI, manteniendo las
+   interfaces de `lib/services/engines.dart`.
 2. Medir latencia, RAM, temperatura y batería en teléfonos físicos; validar
    sesiones bloqueadas, llamadas, auriculares, presión de memoria y modo avión.
 3. Ejecutar el corpus bilingüe y los 100 casos educativos con los artefactos

@@ -32,6 +32,8 @@ void main() {
 
     expect(result.ready, isTrue);
     expect(result.actualSizeBytes, bytes.length);
+    expect((await manager.verifiedFileFor(package)).path,
+        '${temporaryDirectory.path}/basic/model.bin');
   });
 
   test('rejects an invalid package hash', () async {

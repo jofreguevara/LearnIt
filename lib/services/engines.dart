@@ -149,6 +149,86 @@ class NativeDialogueEngine implements DialogueEngine {
   }
 }
 
+/// Converts the native Whisper JSON envelope into the stable Flutter
+/// [Transcript] contract. Native jobs are asynchronous, so this parser is
+/// also the boundary where backend errors become recoverable Dart errors.
+class NativeSpeechRecognizer implements SpeechRecognizer {
+  const NativeSpeechRecognizer(this._client);
+
+  final NativeWhisperClient _client;
+
+  @override
+  Future<Transcript> transcribe(
+    Uint8List audio, {
+    LanguageCode hint = LanguageCode.auto,
+  }) async {
+    final raw = await _client.transcribe(
+      audio: audio,
+      language: hint.value,
+    );
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('La respuesta nativa de STT no es JSON.');
+    }
+    final payload = <String, dynamic>{};
+    for (final entry in decoded.entries) {
+      if (entry.key is! String) {
+        throw const FormatException(
+          'La respuesta nativa de STT contiene una clave inválida.',
+        );
+      }
+      payload[entry.key as String] = entry.value;
+    }
+
+    if (payload['ok'] != true) {
+      final error = payload['error'];
+      if (error is Map &&
+          error['code'] is String &&
+          error['message'] is String) {
+        throw StateError('${error['code']}: ${error['message']}');
+      }
+      throw const FormatException(
+        'La respuesta nativa de STT contiene un error inválido.',
+      );
+    }
+    if (payload['type'] != 'transcript') {
+      throw const FormatException(
+        'La respuesta nativa de STT no declara una transcripción.',
+      );
+    }
+    final text = payload['text'];
+    final languageValue = payload['language'];
+    final confidenceValue = payload['confidence'];
+    if (text is! String || text.trim().isEmpty) {
+      throw const FormatException(
+        'La respuesta nativa de STT no contiene texto válido.',
+      );
+    }
+    if (languageValue is! String) {
+      throw const FormatException(
+        'La respuesta nativa de STT no declara el idioma.',
+      );
+    }
+    final language = languageCodeFromValue(languageValue);
+    if (language == LanguageCode.auto) {
+      throw const FormatException(
+        'La respuesta nativa de STT declara un idioma desconocido.',
+      );
+    }
+    if (confidenceValue is! num || !confidenceValue.isFinite) {
+      throw const FormatException(
+        'La respuesta nativa de STT no declara una confianza válida.',
+      );
+    }
+
+    return Transcript(
+      text: text.trim(),
+      language: language,
+      confidence: confidenceValue.toDouble().clamp(0.0, 1.0).toDouble(),
+    );
+  }
+}
+
 /// Fallback used by the UI before model packages are installed.
 /// It keeps the full orchestration testable without a network or model files.
 class DemoSpeechRecognizer implements SpeechRecognizer {

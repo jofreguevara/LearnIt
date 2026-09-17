@@ -4,6 +4,49 @@ LearnIt es una aplicación Flutter para practicar inglés con inferencia local. 
 
 Para retomar el trabajo desde Codex CLI, consulta el [documento de relevo](docs/CODEX_CLI_HANDOFF.md), que registra el entorno, los comandos y los pendientes.
 
+## Versión 0.4.0
+
+Esta versión inicia la integración nativa real de STT:
+
+- el ABI C pasa a v2 con sesiones opacas, carga diferida de modelos y jobs de
+  transcripción cancelables sin bloquear el hilo de Flutter;
+- `NativeSpeechRecognizer` valida el sobre JSON de Whisper y convierte errores
+  nativos en fallos recuperables del `SessionController`;
+- `ModelManager.verifiedFileFor()` entrega una ruta local únicamente después
+  de comprobar tamaño y SHA-256;
+- el núcleo puede enlazar un checkout fijado de `whisper.cpp` mediante CMake,
+  manteniendo el build demo sin dependencias externas por defecto;
+- se incluye un smoke executable que prueba la transcripción real con el
+  modelo Whisper seleccionado y audio PCM16 mono a 16 kHz.
+
+Para compilar el núcleo con el checkout de `whisper.cpp` usado en la matriz de
+Fase 1 (`da54572229bcf64ba367d96c7ef15770376c4280`):
+
+```bash
+cmake -S native/core -B build/native-v0.4-whisper \
+  -DLEARNIT_WITH_WHISPER=ON \
+  -DLEARNIT_WHISPER_ROOT="$PWD/build/phase1/upstream/whisper.cpp"
+cmake --build build/native-v0.4-whisper --parallel 2
+LD_LIBRARY_PATH="$PWD/build/native-v0.4-whisper/whisper.cpp/bin:$PWD/build/native-v0.4-whisper" \
+  build/native-v0.4-whisper/learnit_whisper_smoke \
+  build/phase1/models/ggml-base-q5_1.bin build/phase1/jfk.wav
+```
+
+El APK continúa en modo demo si no se proporciona el checkout de Whisper.
+Al cambiar entre builds con y sin runtime, limpia primero los artefactos nativos
+para que Gradle regenere la configuración CMake. Para habilitar el backend
+durante una compilación Android desde `android/`:
+
+```bash
+./gradlew :app:clean
+LEARNIT_WITH_WHISPER=ON \
+LEARNIT_WHISPER_ROOT="$PWD/../build/phase1/upstream/whisper.cpp" \
+  ./gradlew :app:assembleDebug
+```
+
+La integración de llama.cpp, Supertonic/iOS y la validación en dispositivos
+físicos siguen siendo los siguientes incrementos.
+
 ## Versión 0.3.0
 
 Esta versión cierra el paquete reproducible de ingeniería de la Fase 1:
@@ -17,9 +60,9 @@ Esta versión cierra el paquete reproducible de ingeniería de la Fase 1:
   las mediciones de host y las puertas que todavía requieren hardware.
 
 Los nueve artefactos seleccionados se verificaron fuera de Git por tamaño y
-SHA-256. La aplicación sigue usando modo demo por defecto: la integración de
-los runtimes reales dentro del núcleo nativo y la certificación en teléfonos
-son puertas explícitas antes de abrir la Fase 2.
+SHA-256. La aplicación seguía usando modo demo por defecto; v0.4.0 habilita
+Whisper únicamente mediante un build explícito y la certificación en teléfonos
+continúa pendiente.
 
 Para repetir la validación de artefactos:
 
@@ -64,14 +107,15 @@ La base inicial contiene:
 - captura PCM16 temporal y reproducción de audio local para validar el ciclo de un turno;
 - configuración de personalidad, correcciones, velocidad de voz y recuerdos con confirmación/edición/borrado;
 - contratos sustituibles para STT, LLM, TTS, memoria y gestión de modelos;
-- un núcleo C++ mínimo preparado para enlazar `whisper.cpp`, `llama.cpp` y ONNX Runtime en la Fase 1;
+- un núcleo C++ con ABI v2 y adaptador opcional de `whisper.cpp`, además de los
+  puntos preparados para `llama.cpp` y ONNX Runtime;
 - integración nativa inicial para las sesiones de audio en Android e iOS.
 
 Los modelos y sus pesos no se incluyen en el repositorio. La aplicación muestra
 el modo de demostración hasta que se instale un paquete verificado por
-`ModelManager`; el catálogo de v0.3.0 fija candidatos de STT/LLM y expone el
-bundle TTS, pero no habilita inferencia de producción sin los adaptadores
-nativos y las pruebas físicas de [`docs/FASE1_VALIDACION.md`](docs/FASE1_VALIDACION.md).
+`ModelManager`; la transcripción real requiere compilar con Whisper y pasar la
+ruta del modelo verificado. Diálogo y síntesis siguen en modo demo hasta
+integrar sus runtimes.
 
 ## Desarrollo y compilación
 
