@@ -1,12 +1,12 @@
 # LearnIt — alcance y plan técnico
 
-**Estado:** v0.6.0 — ABI nativa v3 y ONNX Runtime móvil compilado para arm64-v8a/x86_64; aceptación en dispositivos pendiente<br>
+**Estado:** v0.7.0 — instalador local de modelos conectado a la ABI nativa; aceptación en dispositivos pendiente<br>
 **Público:** adultos<br>
 **Idioma de la interfaz inicial:** español<br>
 **Nombre de trabajo:** LearnIt<br>
 **Compatibilidad inicial:** Android 12+ e iOS 16+, dispositivos ARM64
 
-La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes y puentes nativos de sesión. `v0.5.0` añade una ABI C v3 asíncrona y los adaptadores CPU de Whisper, llama.cpp y Supertonic 3/ONNX Runtime dentro del núcleo; el enlace iOS y la aceptación en dispositivos físicos siguen siendo puertas antes de Fase 2.
+La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes, instalador de pesos y puentes nativos de sesión. `v0.5.0` añade una ABI C v3 asíncrona y los adaptadores CPU de Whisper, llama.cpp y Supertonic 3/ONNX Runtime dentro del núcleo; `v0.7.0` conecta la descarga/activación visible con ese núcleo. El enlace iOS y la aceptación en dispositivos físicos siguen pendientes.
 
 ## 1. Objetivo
 
@@ -210,9 +210,29 @@ Este incremento demuestra compilación cruzada, enlace del núcleo y
 empaquetado ELF. No cierra todavía la aceptación móvil: faltan teléfono
 Android ARM64, iOS/XCFramework, pantalla bloqueada y las métricas de campo.
 
+#### Incremento de v0.7.0
+
+La pantalla de Ajustes incorpora el instalador de modelos locales para el
+perfil básico: Whisper base, Qwen3.5 0.8B y el bundle de siete artefactos de
+Supertonic 3. Cada elemento muestra tamaño, estado, progreso y errores; la
+descarga valida los hashes del catálogo antes de activar el paquete y ofrece
+eliminación. Las transferencias se cancelan cooperativamente y conservan
+`.part` para reanudar, mientras que el bundle se promueve como unidad atómica.
+
+`main.dart` comparte el `ModelManager` con la UI y, tras reiniciar la
+aplicación, usa los manifiestos activos para crear la sesión nativa cuando el
+backend correspondiente está compilado. El permiso de Internet se declara en
+el manifiesto release de Android; los pesos siguen fuera del APK y no se
+descargan en segundo plano todavía. Se mantienen pendientes el cierre físico
+de Android/iOS, pantalla bloqueada, rendimiento, calidad bilingüe y el flujo
+de actualización/borrado seguro en campo.
+
 ### Fase 2 — Flutter e instalación
 
-Crear proyecto Flutter, puente FFI, gestor de modelos, bienvenida, permisos, descarga reanudable, verificación SHA-256, selección de perfil, espacio disponible y funcionamiento desde cero en modo avión.
+Completar la experiencia de instalación alrededor del proyecto Flutter y el
+puente FFI ya operativos: bienvenida, permisos, selección de perfil, cálculo
+de espacio disponible, descarga en segundo plano/reanudación tras terminar la
+actividad y funcionamiento desde cero en modo avión con los artefactos exactos.
 
 ### Fase 3 — Práctica
 

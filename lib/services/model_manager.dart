@@ -423,6 +423,29 @@ class ModelVerification {
   bool get ready => installed && hashMatches && sizeMatches;
 }
 
+/// Cooperative cancellation for a model transfer. An interrupted transfer
+/// keeps its `.part` file so the next attempt can resume with HTTP Range.
+class ModelDownloadCancellation {
+  bool _cancelled = false;
+
+  bool get isCancelled => _cancelled;
+
+  void cancel() => _cancelled = true;
+
+  void throwIfCancelled() {
+    if (_cancelled) {
+      throw const ModelDownloadCancelled();
+    }
+  }
+}
+
+class ModelDownloadCancelled implements Exception {
+  const ModelDownloadCancelled();
+
+  @override
+  String toString() => 'La descarga fue cancelada.';
+}
+
 class ModelArtifactVerification {
   const ModelArtifactVerification({
     required this.artifact,
@@ -782,12 +805,14 @@ class ModelManager {
   Future<ModelVerification> download(
     ModelPackage package, {
     void Function(int receivedBytes, int totalBytes)? onProgress,
+    ModelDownloadCancellation? cancellation,
   }) async {
     final destination = await fileFor(package);
     return _downloadTo(
       package,
       destination,
       onProgress: onProgress,
+      cancellation: cancellation,
     );
   }
 
@@ -798,6 +823,7 @@ class ModelManager {
       int receivedBytes,
       int totalBytes,
     )? onProgress,
+    ModelDownloadCancellation? cancellation,
   }) async {
     final error = bundle.immutableSourceError;
     if (error != null) {
@@ -811,6 +837,7 @@ class ModelManager {
     final staging = Directory('${destination.path}.part');
     await staging.create(recursive: true);
     for (final artifact in bundle.artifacts) {
+      cancellation?.throwIfCancelled();
       final package = _packageForArtifact(bundle, artifact);
       final stagedFile = File(path.join(staging.path, artifact.relativePath));
       await stagedFile.parent.create(recursive: true);
@@ -829,8 +856,10 @@ class ModelManager {
         onProgress: (receivedBytes, totalBytes) {
           onProgress?.call(artifact.id, receivedBytes, totalBytes);
         },
+        cancellation: cancellation,
       );
     }
+    cancellation?.throwIfCancelled();
     await _promoteBundle(staging, destination);
     return await verifyBundle(bundle);
   }
@@ -839,6 +868,7 @@ class ModelManager {
     ModelPackage package,
     File destination, {
     void Function(int receivedBytes, int totalBytes)? onProgress,
+    ModelDownloadCancellation? cancellation,
   }) async {
     final validationError = package.downloadError;
     if (validationError != null) {
@@ -854,6 +884,7 @@ class ModelManager {
     final client = HttpClient();
     var transferCompleted = false;
     try {
+      cancellation?.throwIfCancelled();
       final existingBytes =
           await temporary.exists() ? await temporary.length() : 0;
       final opened = await _openDownloadResponse(
@@ -876,6 +907,7 @@ class ModelManager {
       );
       try {
         await for (final chunk in response) {
+          cancellation?.throwIfCancelled();
           sink.add(chunk);
           receivedBytes += chunk.length;
           onProgress?.call(receivedBytes, totalBytes);
@@ -883,6 +915,7 @@ class ModelManager {
       } finally {
         await sink.close();
       }
+      cancellation?.throwIfCancelled();
       transferCompleted = true;
       final result = await _verifyFile(package, temporary);
       if (!result.ready) {
@@ -1345,7 +1378,7 @@ List<ModelPackage> defaultModelCatalog() => <ModelPackage>[
 
 const _supertonic3Revision = 'aafc6e32416a594460b32413efc49d7fe4ce6d46';
 
-/// Exact Supertonic 3 bundle used by the v0.5.0 Phase 1 host integration.
+/// Exact Supertonic 3 bundle used by the v0.7.0 local model installer.
 ///
 /// The bundle deliberately lives outside [defaultModelCatalog] because a
 /// [ModelPackage] represents one file while this runtime needs all seven

@@ -86,8 +86,9 @@ La reproducción completa también está disponible en
 `V05_*` permiten apuntar a otras rutas fijadas sin modificar el repositorio.
 
 El smoke imprime el sobre de diálogo y confirma que TTS devolvió audio WAV.
-Para Android, `LEARNIT_WITH_LLAMA`, `LEARNIT_WITH_SUPERTONIC` y las rutas se
-leen de variables de entorno durante el configure Gradle. ONNX Runtime debe
+Para Android, `LEARNIT_WITH_LLAMA`, `LEARNIT_WITH_WHISPER`,
+`LEARNIT_WITH_SUPERTONIC` y las rutas se leen de variables de entorno durante
+el configure Gradle. ONNX Runtime debe
 ser compilado o descargado para cada ABI Android; la distribución Linux del
 ejemplo anterior solo sirve para host.
 

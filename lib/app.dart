@@ -4,14 +4,21 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'model_download_page.dart';
 import 'models/domain.dart';
 import 'services/microphone_capture.dart';
+import 'services/model_manager.dart';
 import 'services/session_controller.dart';
 
 class LearnItApp extends StatelessWidget {
-  const LearnItApp({required this.session, super.key});
+  const LearnItApp({
+    required this.session,
+    this.modelManager,
+    super.key,
+  });
 
   final SessionController session;
+  final ModelManager? modelManager;
 
   @override
   Widget build(BuildContext context) {
@@ -23,15 +30,23 @@ class LearnItApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF4057A7),
         scaffoldBackgroundColor: const Color(0xFFF8F9FE),
       ),
-      home: AppShell(session: session),
+      home: AppShell(
+        session: session,
+        modelManager: modelManager ?? ModelManager(),
+      ),
     );
   }
 }
 
 class AppShell extends StatefulWidget {
-  const AppShell({required this.session, super.key});
+  const AppShell({
+    required this.session,
+    required this.modelManager,
+    super.key,
+  });
 
   final SessionController session;
+  final ModelManager modelManager;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -53,7 +68,10 @@ class _AppShellState extends State<AppShell> {
         onStart: () => setState(() => _selectedIndex = 1),
       ),
       ProgressPage(session: widget.session),
-      SettingsPage(session: widget.session),
+      SettingsPage(
+        session: widget.session,
+        modelManager: widget.modelManager,
+      ),
     ];
     return Scaffold(
       body: SafeArea(child: pages[_selectedIndex]),
@@ -627,9 +645,14 @@ class ProgressPage extends StatelessWidget {
 }
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({required this.session, super.key});
+  const SettingsPage({
+    required this.session,
+    required this.modelManager,
+    super.key,
+  });
 
   final SessionController session;
+  final ModelManager modelManager;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -638,6 +661,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late TextEditingController _nameController;
   late TextEditingController _personalityController;
+  late Future<List<MemoryRecord>> _memoriesFuture;
   double? _pendingSpeakingRate;
 
   @override
@@ -647,6 +671,7 @@ class _SettingsPageState extends State<SettingsPage> {
         TextEditingController(text: widget.session.companion.name);
     _personalityController =
         TextEditingController(text: widget.session.companion.personality);
+    _memoriesFuture = widget.session.memories();
   }
 
   @override
@@ -760,6 +785,8 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             },
           ),
+          const SizedBox(height: 20),
+          ModelDownloadSection(manager: widget.modelManager),
           const SizedBox(height: 24),
           Text('Recuerdos confirmados',
               style: Theme.of(context)
@@ -768,7 +795,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           FutureBuilder<List<MemoryRecord>>(
-            future: session.memories(),
+            future: _memoriesFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -806,8 +833,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 tooltip: 'Borrar',
                                 onPressed: memory.id == null
                                     ? null
-                                    : () => unawaited(
-                                        session.deleteMemory(memory.id!)),
+                                    : () => unawaited(_deleteMemory(memory)),
                                 icon: const Icon(Icons.delete_outline),
                               ),
                             ],
@@ -829,6 +855,17 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteMemory(MemoryRecord memory) async {
+    final id = memory.id;
+    if (id == null) {
+      return;
+    }
+    await widget.session.deleteMemory(id);
+    if (mounted) {
+      setState(() => _memoriesFuture = widget.session.memories());
+    }
   }
 
   Future<void> _editMemory(MemoryRecord memory) async {
@@ -870,6 +907,9 @@ class _SettingsPageState extends State<SettingsPage> {
         confirmedAt: memory.confirmedAt,
       ),
     );
+    if (mounted) {
+      setState(() => _memoriesFuture = widget.session.memories());
+    }
   }
 }
 

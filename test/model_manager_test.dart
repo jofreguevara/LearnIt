@@ -263,6 +263,17 @@ void main() {
     );
   });
 
+  test('cancellation token aborts a transfer before network access', () {
+    final cancellation = ModelDownloadCancellation();
+    cancellation.cancel();
+
+    expect(cancellation.isCancelled, isTrue);
+    expect(
+      cancellation.throwIfCancelled,
+      throwsA(isA<ModelDownloadCancelled>()),
+    );
+  });
+
   test('keeps one active package per component', () async {
     final temporaryDirectory =
         await Directory.systemTemp.createTemp('learnit-active-');

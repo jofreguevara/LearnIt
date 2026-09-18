@@ -23,11 +23,14 @@ Future<void> main() async {
     store = InMemoryStore();
   }
 
+  // Loading the native bridge is safe without model bytes; the demo engines
+  // remain active until ModelManager provides verified paths.
   const nativeSpikeEnabled = bool.fromEnvironment(
     'LEARNIT_NATIVE_SPIKE',
-    defaultValue: false,
+    defaultValue: true,
   );
   final nativeBridge = nativeSpikeEnabled ? NativeCoreBridge.tryLoad() : null;
+  final modelManager = ModelManager();
 
   SpeechRecognizer? recognizer;
   DialogueEngine? dialogue;
@@ -35,7 +38,6 @@ Future<void> main() async {
   NativeCoreSession? nativeSession;
   if (nativeBridge != null) {
     try {
-      final modelManager = ModelManager();
       final catalog = defaultModelCatalog();
       String? whisperModelPath;
       String? dialogueModelPath;
@@ -127,7 +129,7 @@ Future<void> main() async {
     playback: DeviceAudioPlayback(),
   );
   await session.load();
-  runApp(LearnItApp(session: session));
+  runApp(LearnItApp(session: session, modelManager: modelManager));
 }
 
 bool _hasBackend(NativeCoreBridge bridge, String name) {

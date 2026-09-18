@@ -474,15 +474,15 @@ extern "C" {
 
 const char *learnit_core_version(void) {
 #if defined(LEARNIT_WITH_LLAMA) && defined(LEARNIT_WITH_SUPERTONIC)
-  return "learnit-core/0.6.0-native";
+  return "learnit-core/0.7.0-native";
 #elif defined(LEARNIT_WITH_LLAMA)
-  return "learnit-core/0.6.0-llama";
+  return "learnit-core/0.7.0-llama";
 #elif defined(LEARNIT_WITH_SUPERTONIC)
-  return "learnit-core/0.6.0-supertonic";
+  return "learnit-core/0.7.0-supertonic";
 #elif defined(LEARNIT_WITH_WHISPER)
-  return "learnit-core/0.6.0-whisper";
+  return "learnit-core/0.7.0-whisper";
 #else
-  return "learnit-core/0.6.0-abi";
+  return "learnit-core/0.7.0-abi";
 #endif
 }
 

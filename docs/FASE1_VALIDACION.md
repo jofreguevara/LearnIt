@@ -67,6 +67,22 @@ compilación cruzada y el enlace del núcleo; no se declara todavía aceptación
 audio o rendimiento porque no había teléfono Android conectado y el entorno no
 puede construir iOS.
 
+## Addendum v0.7.0
+
+La aplicación ya expone en Ajustes la instalación visible de los artefactos
+seleccionados: Whisper base, Qwen3.5 0.8B y el bundle Supertonic 3 M1. La UI
+lee el mismo `ModelManager` que el arranque nativo, muestra tamaño/estado y
+progreso, valida cada archivo antes de activarlo y permite eliminarlo. Las
+descargas admiten cancelación cooperativa y reanudación desde `.part`; el
+bundle se verifica y promueve como una unidad.
+
+La navegación está cubierta por un widget test y la suite Flutter queda en 27
+tests pasados con `flutter analyze` limpio. Android release declara Internet
+para esta instalación; los pesos no se embeben en el APK. La activación pide
+reiniciar la aplicación para que la sesión nativa vuelva a resolver las rutas
+verificadas. Este incremento no demuestra todavía descarga en segundo plano,
+aceptación en teléfono, pantalla bloqueada, iOS ni métricas de campo.
+
 ## Matriz de artefactos
 
 | Camino | Candidato fijado | Tamaño | Estado |
@@ -161,8 +177,9 @@ la integración de STT en host, no una integración móvil terminada.
 | 100 casos educativos y falsos positivos | **Pendiente** | Revisión por persona competente en enseñanza de inglés |
 | Licencias de bundle y cuantizaciones de tercero | **Pendiente** | Adjuntar avisos y decisión legal antes de distribuir |
 
-Por tanto, `v0.6.0` deja compilada y enlazada la variante Android de ONNX
-Runtime, pero no cierra la aceptación pública. La entrada a Fase 2 queda
-deliberadamente bloqueada hasta completar las puertas físicas, de rendimiento
+Por tanto, `v0.7.0` deja compilada y enlazada la variante Android de ONNX
+Runtime y hace operativa la primera instalación desde Flutter, pero no cierra
+la aceptación pública. El cierre de Fase 2 y la entrada a Fase 3 quedan
+deliberadamente pendientes hasta completar las puertas físicas, de rendimiento
 y de calidad educativa; no se debe presentar el modo demo como inferencia
 local de producción.

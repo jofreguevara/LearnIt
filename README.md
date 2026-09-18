@@ -194,6 +194,44 @@ de latencia, RAM, temperatura y batería en dispositivos físicos. El método de
 build sigue los parámetros Android documentados por
 [ONNX Runtime](https://onnxruntime.ai/docs/build/android.html).
 
+## Versión 0.7.0
+
+Esta versión incorpora la instalación de pesos desde la propia aplicación:
+
+- Ajustes muestra los paquetes básicos de Whisper base y Qwen3.5 0.8B, además
+  del bundle de siete artefactos de Supertonic 3 con tamaño y estado local;
+- cada descarga informa el progreso, valida tamaño y SHA-256, activa el paquete
+  solo después de verificarlo y permite eliminarlo;
+- las transferencias se pueden cancelar y reanudar porque conservan su archivo
+  `.part`; el bundle se promueve completo para no dejar una instalación parcial;
+- el APK release declara permiso de Internet únicamente para descargar pesos;
+  los pesos no se incluyen dentro del APK y la práctica posterior puede ser
+  offline;
+- tras activar un paquete hay que reiniciar la aplicación para que el arranque
+  cree la sesión nativa con las nuevas rutas verificadas. Si falta un backend o
+  un modelo, se conserva el modo demo.
+
+La pantalla está preparada para una instalación inicial visible, pero todavía
+no descarga en segundo plano después de terminar la actividad ni sustituye la
+validación física de Android/iOS, audio con pantalla bloqueada y métricas de
+latencia, RAM, temperatura y batería.
+
+La APK release arm64 validada se puede regenerar con los tres backends nativos
+así (los pesos siguen siendo una descarga posterior desde Ajustes):
+
+```bash
+LEARNIT_ANDROID_ABIS=arm64-v8a \
+LEARNIT_WITH_LLAMA=ON \
+LEARNIT_LLAMA_ROOT="$PWD/build/phase1/upstream/llama.cpp" \
+LEARNIT_WITH_WHISPER=ON \
+LEARNIT_WHISPER_ROOT="$PWD/build/phase1/upstream/whisper.cpp" \
+LEARNIT_WITH_SUPERTONIC=ON \
+LEARNIT_SUPERTONIC_ROOT="$PWD/build/phase1/upstream/supertonic" \
+LEARNIT_ONNXRUNTIME_ROOT="$PWD/build/phase1/onnxruntime-android/1.23.1" \
+LEARNIT_NLOHMANN_ROOT="$PWD/build/phase1/upstream/llama.cpp/vendor" \
+  flutter build apk --release --target-platform android-arm64
+```
+
 ## Estado actual
 
 La base inicial contiene:

@@ -1,5 +1,21 @@
 # Historial de cambios
 
+## 0.7.0 — 2026-09-18
+
+- Añadida la sección de modelos locales en Ajustes, compartiendo el mismo
+  `ModelManager` que el arranque nativo.
+- Añadida descarga de Whisper base, Qwen3.5 0.8B y el bundle Supertonic 3 con
+  progreso, verificación, activación y eliminación desde Flutter.
+- Añadida cancelación cooperativa de descargas; los archivos `.part` se
+  conservan para reanudar transferencias y los bundles se promueven atómicamente.
+- Añadido permiso de Internet para el manifiesto release de Android y aviso de
+  reinicio después de activar nuevos pesos.
+- El puente nativo se intenta cargar por defecto, manteniendo los motores demo
+  si todavía no hay pesos verificados o un backend compatible.
+- Actualizada la versión Flutter a `0.7.0+7`; análisis y 27 tests Flutter pasan.
+- Siguen pendientes las pruebas físicas, las descargas en segundo plano, iOS y
+  las métricas de campo de la cadena completa.
+
 ## 0.6.0 — 2026-09-17
 
 - Compilado ONNX Runtime 1.23.1 para Android arm64-v8a y x86_64 con
