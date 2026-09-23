@@ -1,7 +1,7 @@
 name: learnit
 description: Practica inglés con un compañero digital totalmente local.
 publish_to: "none"
-version: 0.7.0+7
+version: 0.7.1+8
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

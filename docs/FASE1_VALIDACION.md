@@ -83,6 +83,22 @@ reiniciar la aplicación para que la sesión nativa vuelva a resolver las rutas
 verificadas. Este incremento no demuestra todavía descarga en segundo plano,
 aceptación en teléfono, pantalla bloqueada, iOS ni métricas de campo.
 
+## Addendum `v0.7.1`
+
+Las pruebas físicas encontraron dos ajustes de Android. Las entradas de
+práctica solicitan el permiso de micrófono antes de iniciar el foreground
+service; si Android rechaza el servicio, el error queda visible y la pantalla
+no navega como si la sesión hubiera comenzado. El plugin y el servicio nativos
+capturan fallos de permisos/estado para evitar el cierre del proceso.
+
+Los botones de estado y descarga de modelos usan un ancho común y etiquetas
+de una sola línea. Durante una descarga, `ModelDownloadSection` observa
+`paused`, `hidden` y `resumed`, conserva los archivos `.part`, actualiza el
+estado al volver y ofrece abrir los ajustes de LearnIt para activar la
+actividad en segundo plano o seleccionar una batería sin restricciones. Esto
+mejora la recuperación, pero todavía requiere validación con políticas de
+batería y terminación del proceso en teléfonos concretos.
+
 ## Matriz de artefactos
 
 | Camino | Candidato fijado | Tamaño | Estado |
@@ -177,7 +193,7 @@ la integración de STT en host, no una integración móvil terminada.
 | 100 casos educativos y falsos positivos | **Pendiente** | Revisión por persona competente en enseñanza de inglés |
 | Licencias de bundle y cuantizaciones de tercero | **Pendiente** | Adjuntar avisos y decisión legal antes de distribuir |
 
-Por tanto, `v0.7.0` deja compilada y enlazada la variante Android de ONNX
+Por tanto, `v0.7.1` deja compilada y enlazada la variante Android de ONNX
 Runtime y hace operativa la primera instalación desde Flutter, pero no cierra
 la aceptación pública. El cierre de Fase 2 y la entrada a Fase 3 quedan
 deliberadamente pendientes hasta completar las puertas físicas, de rendimiento

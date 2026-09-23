@@ -1,5 +1,21 @@
 # Historial de cambios
 
+## 0.7.1 — 2026-09-23
+
+- Corregido el cierre de Android al iniciar una práctica: se solicita primero
+  el permiso de micrófono y se protegen las excepciones del foreground service.
+- Añadidos mensajes recuperables cuando Android no puede mantener audio en
+  segundo plano, sin abandonar silenciosamente la sesión.
+- Ajustados todos los botones de modelos a un ancho común y etiquetas de una
+  sola línea; `Activo`, `Activar`, `Descargar`, `Cancelar` y `Procesando` ya no
+  se parten en dos filas.
+- Añadido seguimiento del ciclo de vida durante descargas, aviso para activar
+  “Permitir actividad en segundo plano”, acceso a los ajustes de Android y
+  mensaje claro para conexiones cerradas al cambiar de aplicación.
+- Conservados los `.part` para reanudar la descarga después de una suspensión
+  o interrupción de red.
+- Actualizada la versión Flutter a `0.7.1+8`.
+
 ## 0.7.0 — 2026-09-18
 
 - Añadida la sección de modelos locales en Ajustes, compartiendo el mismo

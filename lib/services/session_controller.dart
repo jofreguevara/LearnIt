@@ -19,7 +19,7 @@ class SessionController extends ChangeNotifier {
         _recognizer = recognizer ?? const DemoSpeechRecognizer(),
         _dialogue = dialogue ?? const DemoDialogueEngine(),
         _synthesizer = synthesizer ?? const DemoSpeechSynthesizer(),
-        _platformAudio = platformAudio ?? const PlatformAudioSession(),
+        _platformAudio = platformAudio ?? PlatformAudioSession(),
         _playback = playback ?? NoopAudioPlayback();
 
   final MemoryStore _store;
@@ -64,9 +64,16 @@ class SessionController extends ChangeNotifier {
 
   Future<List<MemoryRecord>> memories() => _store.listMemories();
 
-  Future<void> start({bool audio = true, String? topic}) async {
+  Future<bool> start({bool audio = true, String? topic}) async {
     if (_snapshot.state == SessionState.listening || _busy) {
-      return;
+      return _snapshot.state == SessionState.listening;
+    }
+    if (audio) {
+      final platformStarted = await _platformAudio.start();
+      if (!platformStarted && _platformAudio.lastError != null) {
+        _setError(_platformAudio.lastError!);
+        return false;
+      }
     }
     _startedAt = DateTime.now();
     _sessionId = 'session-${_startedAt!.microsecondsSinceEpoch}';
@@ -74,12 +81,10 @@ class SessionController extends ChangeNotifier {
     _audioEnabled = audio;
     _messages.clear();
     _pendingProposals.clear();
-    if (audio) {
-      await _platformAudio.start();
-    }
     _setSnapshot(
       const SessionSnapshot(state: SessionState.listening, turnCount: 0),
     );
+    return true;
   }
 
   void pause() {
@@ -124,7 +129,10 @@ class SessionController extends ChangeNotifier {
     }
     if (_snapshot.state == SessionState.idle ||
         _snapshot.state == SessionState.finished) {
-      await start(audio: false);
+      final started = await start(audio: false);
+      if (!started) {
+        return;
+      }
     }
     if (_snapshot.state == SessionState.paused) {
       return;
@@ -147,7 +155,10 @@ class SessionController extends ChangeNotifier {
     }
     if (_snapshot.state == SessionState.idle ||
         _snapshot.state == SessionState.finished) {
-      await start(audio: true);
+      final started = await start(audio: true);
+      if (!started) {
+        return;
+      }
     }
     if (_snapshot.state == SessionState.paused) {
       return;

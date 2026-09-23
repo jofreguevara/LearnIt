@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'services/model_manager.dart';
+import 'services/platform_settings.dart';
 
 /// Installs verified model bytes in the app-private support directory.
 class ModelDownloadSection extends StatefulWidget {
@@ -17,7 +18,8 @@ class ModelDownloadSection extends StatefulWidget {
   State<ModelDownloadSection> createState() => _ModelDownloadSectionState();
 }
 
-class _ModelDownloadSectionState extends State<ModelDownloadSection> {
+class _ModelDownloadSectionState extends State<ModelDownloadSection>
+    with WidgetsBindingObserver {
   late final List<ModelPackage> _packages = defaultModelCatalog()
       .where(
         (package) =>
@@ -41,12 +43,33 @@ class _ModelDownloadSectionState extends State<ModelDownloadSection> {
   Set<String> _activePackageIds = <String>{};
   bool _bundleActive = false;
   bool _loading = true;
+  bool _backgroundNotice = false;
   String? _loadError;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_refresh());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
+        _cancellations.isNotEmpty) {
+      if (mounted) {
+        setState(() => _backgroundNotice = true);
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      unawaited(_refresh());
+    }
   }
 
   @override
@@ -99,6 +122,10 @@ class _ModelDownloadSectionState extends State<ModelDownloadSection> {
                   'Se recomienda usar Wi-Fi y tener espacio libre suficiente.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (_backgroundNotice) ...<Widget>[
+                  const SizedBox(height: 12),
+                  _BackgroundNotice(onOpenSettings: _openBackgroundSettings),
+                ],
                 if (_loadError != null) ...<Widget>[
                   const SizedBox(height: 12),
                   _ErrorMessage(message: _loadError!),
@@ -187,35 +214,49 @@ class _ModelDownloadSectionState extends State<ModelDownloadSection> {
     required VoidCallback onActivate,
     required VoidCallback onCancel,
   }) {
+    const actionWidth = 132.0;
     if (busy) {
       return SizedBox(
-        width: 112,
+        width: actionWidth,
         child: OutlinedButton(
           onPressed: cancellable ? onCancel : null,
-          child: Text(cancellable ? 'Cancelar' : 'Procesando'),
+          child: _buttonLabel(cancellable ? 'Cancelar' : 'Procesando'),
         ),
       );
     }
     if (ready && active) {
       return SizedBox(
-        width: 86,
+        width: actionWidth,
         child: OutlinedButton(
           onPressed: null,
-          child: const Text('Activo'),
+          child: _buttonLabel('Activo'),
         ),
       );
     }
     if (ready) {
-      return FilledButton(
-        onPressed: onActivate,
-        child: const Text('Activar'),
+      return SizedBox(
+        width: actionWidth,
+        child: FilledButton(
+          onPressed: onActivate,
+          child: _buttonLabel('Activar'),
+        ),
       );
     }
-    return FilledButton(
-      onPressed: onDownload,
-      child: const Text('Descargar'),
+    return SizedBox(
+      width: actionWidth,
+      child: FilledButton(
+        onPressed: onDownload,
+        child: _buttonLabel('Descargar'),
+      ),
     );
   }
+
+  Widget _buttonLabel(String label) => Text(
+        label,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+      );
 
   Future<void> _downloadPackage(ModelPackage package) async {
     if (_busy.contains(package.id)) {
@@ -392,6 +433,20 @@ class _ModelDownloadSectionState extends State<ModelDownloadSection> {
     }
   }
 
+  Future<void> _openBackgroundSettings() async {
+    final opened = await PlatformSettings.openBackgroundSettings();
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Abre Ajustes de Android → Aplicaciones → LearnIt → Batería '
+            'y selecciona “Sin restricciones”.',
+          ),
+        ),
+      );
+    }
+  }
+
   ModelDownloadCancellation? _begin(
     String id,
     int totalBytes, {
@@ -523,10 +578,62 @@ class _ModelDownloadSectionState extends State<ModelDownloadSection> {
       return 'Descarga cancelada. Puedes reanudarla cuando quieras.';
     }
     final text = error.toString();
+    final lowerText = text.toLowerCase();
+    if (lowerText.contains('connection closed') ||
+        lowerText.contains('connection reset') ||
+        lowerText.contains('timed out') ||
+        lowerText.contains('connection abort')) {
+      return 'La descarga se interrumpió al cambiar de aplicación. Activa '
+          '“Permitir actividad en segundo plano” para LearnIt y pulsa '
+          'Descargar otra vez; se conservará el avance parcial.';
+    }
     if (text.length <= 180) {
       return text;
     }
     return '${text.substring(0, 177)}…';
+  }
+}
+
+class _BackgroundNotice extends StatelessWidget {
+  const _BackgroundNotice({required this.onOpenSettings});
+
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Text(
+              'Actividad en segundo plano',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Para cambiar de aplicación mientras descargas o practicas, '
+              'activa “Permitir actividad en segundo plano” para LearnIt. '
+              'Las descargas interrumpidas se pueden reanudar.',
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: onOpenSettings,
+                icon: const Icon(Icons.settings_outlined),
+                label: const Text('Abrir ajustes'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

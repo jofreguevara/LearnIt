@@ -1,12 +1,12 @@
 # LearnIt — alcance y plan técnico
 
-**Estado:** v0.7.0 — instalador local de modelos conectado a la ABI nativa; aceptación en dispositivos pendiente<br>
+**Estado:** v0.7.1 — correcciones de arranque, layout y ciclo de vida Android; aceptación en dispositivos pendiente<br>
 **Público:** adultos<br>
 **Idioma de la interfaz inicial:** español<br>
 **Nombre de trabajo:** LearnIt<br>
 **Compatibilidad inicial:** Android 12+ e iOS 16+, dispositivos ARM64
 
-La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes, instalador de pesos y puentes nativos de sesión. `v0.5.0` añade una ABI C v3 asíncrona y los adaptadores CPU de Whisper, llama.cpp y Supertonic 3/ONNX Runtime dentro del núcleo; `v0.7.0` conecta la descarga/activación visible con ese núcleo. El enlace iOS y la aceptación en dispositivos físicos siguen pendientes.
+La implementación actual entrega el esqueleto Flutter, el flujo textual de demostración, captura PCM16 temporal, reproducción local, persistencia, verificación de paquetes, instalador de pesos y puentes nativos de sesión. `v0.5.0` añade una ABI C v3 asíncrona y los adaptadores CPU de Whisper, llama.cpp y Supertonic 3/ONNX Runtime dentro del núcleo; `v0.7.0` conecta la descarga/activación visible con ese núcleo; `v0.7.1` corrige permisos de audio, botones y recuperación al cambiar de aplicación. El enlace iOS y la aceptación en dispositivos físicos siguen pendientes.
 
 ## 1. Objetivo
 
@@ -226,6 +226,16 @@ el manifiesto release de Android; los pesos siguen fuera del APK y no se
 descargan en segundo plano todavía. Se mantienen pendientes el cierre físico
 de Android/iOS, pantalla bloqueada, rendimiento, calidad bilingüe y el flujo
 de actualización/borrado seguro en campo.
+
+#### Corrección de v0.7.1
+
+Las entradas de práctica solicitan el permiso de micrófono antes de pedir a
+Android el foreground service de audio. El plugin y el servicio capturan
+excepciones de permisos/estado y Flutter conserva el error visible en vez de
+cerrar el proceso. El instalador observa `paused`/`hidden`/`resumed`, mantiene
+los `.part`, actualiza el estado al volver y abre la ficha de ajustes de la
+aplicación para configurar batería sin restricciones. Los botones de modelos
+usan un ancho común y etiquetas sin salto de línea.
 
 ### Fase 2 — Flutter e instalación
 

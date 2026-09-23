@@ -14,17 +14,20 @@ se empaqueta en Android para `arm64-v8a`, `armeabi-v7a` y `x86_64` mediante
 `android/app/src/main/cpp/CMakeLists.txt`; la distribución móvil de ONNX
 Runtime para Supertonic v0.6.0 cubre `arm64-v8a` y `x86_64`.
 
-La versión v0.7.0 conserva la ruta real de host: ABI v3 con jobs de STT,
+La versión v0.7.1 conserva la ruta real de host: ABI v3 con jobs de STT,
 diálogo y TTS, adaptadores CPU opt-in de `whisper.cpp`, `llama.cpp` y
 Supertonic/ONNX Runtime, y engines Dart que consumen solo rutas verificadas por
 `ModelManager`. Añade ONNX Runtime Android 1.23.1 compilado por ABI, con
 paquete reducido, hashes y guardas CMake. El build y el modo demo siguen
 siendo posibles sin los checkouts y modelos locales; la UI de Ajustes descarga,
 verifica, activa y elimina los pesos básicos y el bundle Supertonic, con
-cancelación/reanudación mediante `.part`. Android/iOS físicos, pantalla
-bloqueada y métricas de campo siguen pendientes.
+cancelación/reanudación mediante `.part`. La entrada a práctica solicita el
+micrófono antes del servicio de audio, los errores de permisos son recuperables,
+los botones de modelos no saltan de línea y el instalador detecta el cambio de
+aplicación para orientar sobre actividad en segundo plano y abrir sus ajustes.
+Android/iOS físicos, pantalla bloqueada y métricas de campo siguen pendientes.
 
-## Estado v0.7.0
+## Estado v0.7.1
 
 `ModelDownloadSection` vive en Ajustes y comparte el `ModelManager` de
 `main.dart`, por lo que los manifiestos activos se reutilizan al reiniciar la
@@ -32,7 +35,9 @@ aplicación. El instalador cubre Whisper base, Qwen3.5 0.8B y Supertonic 3 M1;
 verifica tamaño/SHA-256, activa después de una descarga válida y promueve el
 bundle multiarchivo de forma atómica. El botón Cancelar conserva los
 temporales para reanudar; no hay todavía un worker de descarga en segundo
-plano.
+plano. Al pausar o ocultar la aplicación durante una descarga, la UI conserva
+el archivo parcial, muestra la instrucción de habilitar la actividad en segundo
+plano y ofrece abrir la ficha de ajustes de LearnIt.
 
 El `LEARNIT_NATIVE_SPIKE` queda habilitado por defecto para que una instalación
 con backends compilados pueda usar los pesos activos después del reinicio. Si
@@ -86,11 +91,11 @@ artefactos y las cifras de referencia de host se mantienen en
 
 ## Artefactos recientes
 
-- APK release v0.7.0 arm64: `build/app/outputs/flutter-apk/app-release.apk`
+- APK release v0.7.1 arm64: `build/app/outputs/flutter-apk/app-release.apk`
   (34,4 MB), compilada con Whisper, llama.cpp, Supertonic y ONNX Runtime móvil
   1.23.1.
-- CTest ABI v0.7.0: `build/native-v0.7/learnit_core_test`.
-- Biblioteca C++ de demostración: `build/native-v0.7/liblearnit_core.so`.
+- CTest ABI v0.7.1: `build/native-v0.7.1/learnit_core_test`.
+- Biblioteca C++ de demostración: `build/native-v0.7.1/liblearnit_core.so`.
 
 El APK release usa la clave debug provisional y sirve para pruebas locales;
 configurar firma propia antes de distribuirlo. No había ningún dispositivo

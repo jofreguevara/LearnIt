@@ -20,9 +20,23 @@ class AudioSessionPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "start" -> {
-                val intent = Intent(context, LocalSessionService::class.java)
-                ContextCompat.startForegroundService(context, intent)
-                result.success(null)
+                try {
+                    val intent = Intent(context, LocalSessionService::class.java)
+                    ContextCompat.startForegroundService(context, intent)
+                    result.success(null)
+                } catch (error: SecurityException) {
+                    result.error(
+                        "BACKGROUND_AUDIO_PERMISSION",
+                        "Activa el permiso de micrófono y la actividad en segundo plano para LearnIt.",
+                        error.message,
+                    )
+                } catch (error: Exception) {
+                    result.error(
+                        "BACKGROUND_AUDIO_UNAVAILABLE",
+                        "No se pudo mantener la sesión en segundo plano.",
+                        error.message,
+                    )
+                }
             }
             "pause" -> result.success(null)
             "resume" -> result.success(null)

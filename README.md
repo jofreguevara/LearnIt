@@ -194,6 +194,23 @@ de latencia, RAM, temperatura y batería en dispositivos físicos. El método de
 build sigue los parámetros Android documentados por
 [ONNX Runtime](https://onnxruntime.ai/docs/build/android.html).
 
+## Versión 0.7.1
+
+Esta corrección atiende los problemas encontrados en las primeras pruebas físicas de Android:
+
+- la práctica solicita el micrófono antes de iniciar el servicio de audio, y
+  los fallos del servicio se muestran en pantalla en lugar de cerrar la app;
+- los botones de estado y descarga de modelos tienen ancho uniforme y texto en
+  una sola línea;
+- si una descarga se interrumpe al cambiar de aplicación, se conserva el
+  avance parcial, se informa que debe habilitarse la actividad en segundo plano
+  para LearnIt y se ofrece abrir los ajustes de Android.
+
+La versión Flutter es `0.7.1+8`. La continuidad real depende de que el usuario
+seleccione “Sin restricciones” o equivalente en la batería del dispositivo;
+las pruebas en pantalla bloqueada y con el proceso terminado siguen siendo
+criterios de validación física.
+
 ## Versión 0.7.0
 
 Esta versión incorpora la instalación de pesos desde la propia aplicación:

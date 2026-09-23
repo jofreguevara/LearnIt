@@ -10,6 +10,8 @@ import 'services/microphone_capture.dart';
 import 'services/model_manager.dart';
 import 'services/session_controller.dart';
 
+typedef PracticeStarter = Future<void> Function({String? topic});
+
 class LearnItApp extends StatelessWidget {
   const LearnItApp({
     required this.session,
@@ -60,12 +62,12 @@ class _AppShellState extends State<AppShell> {
     final pages = <Widget>[
       HomePage(
         session: widget.session,
-        onStart: () => setState(() => _selectedIndex = 1),
+        onStart: _startPractice,
       ),
       ConversationPage(session: widget.session),
       TopicsPage(
         session: widget.session,
-        onStart: () => setState(() => _selectedIndex = 1),
+        onStart: _startPractice,
       ),
       ProgressPage(session: widget.session),
       SettingsPage(
@@ -104,13 +106,49 @@ class _AppShellState extends State<AppShell> {
       ),
     );
   }
+
+  Future<void> _startPractice({String? topic}) async {
+    try {
+      final permissionGranted = await requestMicrophonePermission();
+      if (!mounted) {
+        return;
+      }
+      if (!permissionGranted) {
+        _showStartMessage(
+          'Concede el permiso de micrófono para iniciar la práctica.',
+        );
+        return;
+      }
+      final started = await widget.session.start(topic: topic);
+      if (!started) {
+        _showStartMessage(
+          widget.session.snapshot.errorMessage ??
+              'No se pudo iniciar la práctica.',
+        );
+        return;
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        _showStartMessage('No se pudo iniciar la práctica: $error');
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() => _selectedIndex = 1);
+    }
+  }
+
+  void _showStartMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
 }
 
 class HomePage extends StatelessWidget {
   const HomePage({required this.session, required this.onStart, super.key});
 
   final SessionController session;
-  final VoidCallback onStart;
+  final PracticeStarter onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -158,10 +196,7 @@ class HomePage extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyLarge),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: () async {
-                      await session.start();
-                      onStart();
-                    },
+                    onPressed: () => unawaited(onStart()),
                     icon: const Icon(Icons.mic_none),
                     label: const Text('Empezar práctica'),
                   ),
@@ -245,8 +280,7 @@ class _ConversationPageState extends State<ConversationPage> {
                           color: Theme.of(context).colorScheme.error))),
             Expanded(
               child: session.messages.isEmpty
-                  ? _EmptyConversation(
-                      onStart: () => unawaited(session.start()))
+                  ? _EmptyConversation(onStart: _startSession)
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
                       itemCount: session.messages.length,
@@ -388,6 +422,38 @@ class _ConversationPageState extends State<ConversationPage> {
     unawaited(widget.session.submitText(text));
   }
 
+  Future<void> _startSession() async {
+    try {
+      final permissionGranted = await requestMicrophonePermission();
+      if (!mounted) {
+        return;
+      }
+      if (!permissionGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Concede el permiso de micrófono para iniciar.'),
+          ),
+        );
+        return;
+      }
+      final started = await widget.session.start();
+      if (!started && mounted) {
+        final message = widget.session.snapshot.errorMessage;
+        if (message != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo iniciar la sesión: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _finish() async {
     if (_recording) {
       await _capture?.cancel();
@@ -460,7 +526,7 @@ class TopicsPage extends StatelessWidget {
   const TopicsPage({required this.session, required this.onStart, super.key});
 
   final SessionController session;
-  final VoidCallback onStart;
+  final PracticeStarter onStart;
 
   static const topics = <Map<String, String>>[
     {
@@ -596,8 +662,7 @@ class TopicsPage extends StatelessWidget {
                   subtitle: Text(topic['subtitle']!),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () async {
-                    await session.start(topic: topic['title']);
-                    onStart();
+                    await onStart(topic: topic['title']);
                   },
                 ),
               );
@@ -1016,7 +1081,7 @@ class _StatusPill extends StatelessWidget {
 class _EmptyConversation extends StatelessWidget {
   const _EmptyConversation({required this.onStart});
 
-  final VoidCallback onStart;
+  final Future<void> Function() onStart;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -1038,7 +1103,8 @@ class _EmptyConversation extends StatelessWidget {
                     'Escribe una frase o usa uno de los ejemplos. Esta demo mantiene todo local.'),
                 const SizedBox(height: 16),
                 FilledButton(
-                    onPressed: onStart, child: const Text('Iniciar sesión')),
+                    onPressed: () => unawaited(onStart()),
+                    child: const Text('Iniciar sesión')),
               ]),
         ),
       );

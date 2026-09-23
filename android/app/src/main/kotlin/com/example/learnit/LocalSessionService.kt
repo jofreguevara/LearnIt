@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -27,7 +28,12 @@ class LocalSessionService : Service() {
         } else {
             0
         }
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, foregroundType)
+        try {
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, foregroundType)
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to start LearnIt foreground audio service", error)
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -96,6 +102,7 @@ class LocalSessionService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 
     companion object {
+        private const val TAG = "LearnItSessionService"
         const val CHANNEL_ID = "learnit-session"
         const val NOTIFICATION_ID = 4201
         const val ACTION_PAUSE = "com.example.learnit.action.PAUSE"

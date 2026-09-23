@@ -1,7 +1,31 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:record/record.dart';
+
+/// Requests microphone access before a foreground audio service is started.
+/// Desktop and tests keep the demo path available without a platform prompt.
+Future<bool> requestMicrophonePermission() async {
+  if (kIsWeb ||
+      (defaultTargetPlatform != TargetPlatform.android &&
+          defaultTargetPlatform != TargetPlatform.iOS)) {
+    return true;
+  }
+  final recorder = AudioRecorder();
+  try {
+    return await recorder.hasPermission();
+  } on MissingPluginException {
+    // Keep the local demo usable on desktop and in widget tests where the
+    // mobile recorder plugin is intentionally not registered.
+    return true;
+  } on PlatformException {
+    return false;
+  } finally {
+    await recorder.dispose();
+  }
+}
 
 /// Captures a single turn as PCM16 in memory. The completed buffer is handed
 /// directly to SpeechRecognizer and is never written to a file.

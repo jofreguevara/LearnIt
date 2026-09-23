@@ -1378,7 +1378,7 @@ List<ModelPackage> defaultModelCatalog() => <ModelPackage>[
 
 const _supertonic3Revision = 'aafc6e32416a594460b32413efc49d7fe4ce6d46';
 
-/// Exact Supertonic 3 bundle used by the v0.7.0 local model installer.
+/// Exact Supertonic 3 bundle used by the v0.7.1 local model installer.
 ///
 /// The bundle deliberately lives outside [defaultModelCatalog] because a
 /// [ModelPackage] represents one file while this runtime needs all seven
